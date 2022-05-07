@@ -10,9 +10,9 @@
 
 namespace trv
 {
-	//unsigned long long header = 0x0a1a0a0d474e5089;
 	unsigned long long header = 0x89504e470d0a1a0a;
 
+	// Output type
 	template <typename T>
 	struct Image
 	{
@@ -20,21 +20,23 @@ namespace trv
 		unsigned int width, height, channels;
 	};
 
+	// Forward decl for func to read numbers correctly from PNG file
 	template <typename T>
 	T correct_endian(const char*);
 
+	// Enum of supported chunk types
 	enum class ChunkType : size_t { IHDR, PLTE, IDAT, IEND, Count };
 
+	// Chunk data type, has requirements for generic construction
 	template<typename T>
 	concept IsChunk = requires (T x)
 	{
-		//{x.size} -> std::same_as<size_t>;
-
 		requires std::is_constructible_v<T, const char*, size_t>;
 
 		requires std::is_default_constructible_v<T>;
 	};
 
+	// Generic container for chunk in PNG with auxilliary data
 	template <IsChunk T>
 	struct Chunk
 	{
@@ -51,6 +53,7 @@ namespace trv
 		uint32_t crc;
 	};
 	
+
 	struct IHDR
 	{
 		constexpr static size_t size = sizeof(uint32_t) * 2 + sizeof(char) * 5;
@@ -77,6 +80,7 @@ namespace trv
 		char interlaceMethod;
 	};
 
+
 	struct PLTE
 	{
 		PLTE() : size(), pallette() {};
@@ -88,6 +92,7 @@ namespace trv
 		size_t size;
 		std::vector<char> pallette;
 	};
+
 
 	struct IDAT
 	{
@@ -101,6 +106,7 @@ namespace trv
 		std::vector<char> data;
 	};
 
+
 	struct IEND
 	{
 		IEND() = default;
@@ -109,6 +115,7 @@ namespace trv
 		constexpr static size_t size = 0;
 	};
 
+	// Container for supported chunk types
 	struct Chunks
 	{
 		Chunks() {};
@@ -118,7 +125,8 @@ namespace trv
 		std::unique_ptr<Chunk<IEND>> end;
 	};
 
-	template <typename T>
+	// Allows reading of integral types from big-endian binary stream
+	template <std::integral T>
 	T correct_endian(const char* buffer) {
 		T val = *(T*)buffer;
 
@@ -130,8 +138,8 @@ namespace trv
 		return val;
 	}
 	
-
-	constexpr unsigned long encode_type_impl(const char* str, unsigned long val = 0)
+	// Recursive compile-time encoding of chunk types
+	constexpr uint32_t encode_type_impl(const char* str, uint32_t val = 0)
 	{
 		return *str ?
 			(val ?
@@ -140,13 +148,13 @@ namespace trv
 			: val;
 	}
 
-	constexpr unsigned long encode_type(const char* str)
+	// Compile-time encoding of chunk types
+	constexpr uint32_t encode_type(const char* str)
 	{
 		return encode_type_impl(str);
 	}
 
-
-
+	// Read PNG file
 	template <typename T>
 	Image<T> load_image(const std::string& path)
 	{
@@ -156,7 +164,7 @@ namespace trv
 
 		const char* head = buffer.data();
 
-		unsigned long long file_header = correct_endian<unsigned long long>(head);
+		uint64_t file_header = correct_endian<uint64_t>(head);
 		head += sizeof(header);
 
 		if (file_header != header)
@@ -164,12 +172,12 @@ namespace trv
 			throw std::runtime_error("Unable to read file, invalid PNG header.");
 		}
 
-		unsigned long size = correct_endian<unsigned long>(head);
+		uint32_t size = correct_endian<uint32_t>(head);
 		head += sizeof(size);
-		unsigned long type = *(unsigned long*)head;
+		uint32_t type = *(uint32_t*)head;
 		head -= sizeof(type);
 		
-		constexpr unsigned long ihdr = encode_type("IHDR");
+		constexpr uint32_t ihdr = encode_type("IHDR");
 		if (type != ihdr)
 		{
 			throw std::runtime_error("Unable to parse PNG, IHDR chunk missing.");
