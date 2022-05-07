@@ -3,26 +3,42 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 #include <bit>
 #include <type_traits>
 #include <memory>
 #include <assert.h>
 
+#define CRCPP_USE_CPP11
+#include "ext/CRC.h"
+
 namespace trv
 {
-	unsigned long long header = 0x89504e470d0a1a0a;
+	//Expected first 8 bytes of all PNG files
+	uint64_t header = 0x89504e470d0a1a0a;
 
 	// Output type
 	template <typename T>
 	struct Image
 	{
 		std::vector<T> data;
-		unsigned int width, height, channels;
+		uint32_t width, height, channels;
 	};
 
-	// Forward decl for func to read numbers correctly from PNG file
-	template <typename T>
-	T correct_endian(const char*);
+
+	// Allows reading of integral types from big-endian binary stream
+	template <std::integral T>
+	T correct_endian(const char* buffer) {
+		T val = *(T*)buffer;
+
+		if (std::endian::native == std::endian::little)
+		{
+			val = std::byteswap<T>(val);
+		}
+
+		return val;
+	}
 
 	// Enum of supported chunk types
 	enum class ChunkType : size_t { IHDR, PLTE, IDAT, IEND, Count };
@@ -44,8 +60,18 @@ namespace trv
 		Chunk(const char* buffer, size_t size) : size(correct_endian<uint32_t>(buffer)),
 			type(*(uint32_t*)(buffer + sizeof(uint32_t))),
 			data(buffer + sizeof(uint32_t) * 2, size),
-			crc(correct_endian<uint32_t>(buffer + data.size))
-		{};
+			crc(correct_endian<uint32_t>(buffer + +sizeof(uint32_t)*2 + data.size))
+		{
+			uint32_t computed_crc = CRC::Calculate(buffer + sizeof(uint32_t), sizeof(uint32_t) + size, CRC::CRC_32());
+
+			if (computed_crc != crc)
+			{
+				std::stringstream msg;
+				msg << "Computed CRC " << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << computed_crc
+					<< " doesn't match read CRC " << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << crc;
+				throw std::runtime_error(msg.str());
+			}
+		};
 
 		uint32_t size;
 		uint32_t type;
@@ -57,6 +83,7 @@ namespace trv
 	struct IHDR
 	{
 		constexpr static size_t size = sizeof(uint32_t) * 2 + sizeof(char) * 5;
+		constexpr static ChunkType type = ChunkType::IHDR;
 
 		IHDR() = default;
 
@@ -83,6 +110,7 @@ namespace trv
 
 	struct PLTE
 	{
+		constexpr static ChunkType type = ChunkType::PLTE;
 		PLTE() : size(), pallette() {};
 
 		PLTE(const char* buffer, size_t size) :
@@ -96,6 +124,7 @@ namespace trv
 
 	struct IDAT
 	{
+		constexpr static ChunkType type = ChunkType::IDAT;
 		IDAT() : size(), data() {};
 
 		IDAT(const char* buffer, size_t size) :
@@ -109,6 +138,7 @@ namespace trv
 
 	struct IEND
 	{
+		constexpr static ChunkType type = ChunkType::IEND;
 		IEND() = default;
 
 		IEND(const char* buffer, size_t size) {};
@@ -124,19 +154,6 @@ namespace trv
 		std::vector<Chunk<IDAT>> image_data;
 		std::unique_ptr<Chunk<IEND>> end;
 	};
-
-	// Allows reading of integral types from big-endian binary stream
-	template <std::integral T>
-	T correct_endian(const char* buffer) {
-		T val = *(T*)buffer;
-
-		if (std::endian::native == std::endian::little)
-		{
-			val = std::byteswap<T>(val);
-		}
-
-		return val;
-	}
 	
 	// Recursive compile-time encoding of chunk types
 	constexpr uint32_t encode_type_impl(const char* str, uint32_t val = 0)
@@ -185,5 +202,7 @@ namespace trv
 
 		Chunks chunks;
 		chunks.header = std::make_unique<Chunk<IHDR>>(head, size);
+
+		return Image<T>();
 	}
 }
