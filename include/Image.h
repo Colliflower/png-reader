@@ -16,7 +16,8 @@
 namespace trv
 {
 	//Expected first 8 bytes of all PNG files
-	uint64_t header = 0x89504e470d0a1a0a;
+	static const uint64_t header = 0x89504e470d0a1a0a;
+	static const auto& crc_table = CRC::CRC_32().MakeTable();
 
 	// Output type
 	template <typename T>
@@ -26,11 +27,11 @@ namespace trv
 		uint32_t width, height, channels;
 	};
 
-
 	// Allows reading of integral types from big-endian binary stream
 	template <std::integral T>
-	T correct_endian(const char* buffer) {
-		T val = *(T*)buffer;
+	T extract_from_ifstream(std::basic_ifstream<char>& input) {
+		T val;
+		input.read(reinterpret_cast<char*>(&val), sizeof(val));
 
 		if (std::endian::native == std::endian::little)
 		{
@@ -40,30 +41,50 @@ namespace trv
 		return val;
 	}
 
+	template <std::integral T>
+	T big_endian(T val)
+	{
+		if (std::endian::native == std::endian::little)
+		{
+			val = std::byteswap<T>(val);
+		}
+
+		return val;
+	}
+	// Compile-time encoding of chunk types
+	constexpr uint32_t encode_type(const char* str)
+	{
+		if (std::endian::native == std::endian::big)
+		{
+			return str[0] | str[1] << 8 | str[2] << 16 | str[3] << 24;
+		}
+		else
+		{
+			return str[3] | str[2] << 8 | str[1] << 16 | str[0] << 24;
+		}
+	}
+
 	// Enum of supported chunk types
-	enum class ChunkType : size_t { IHDR, PLTE, IDAT, IEND, Count };
+	enum class ChunkType : size_t { IHDR, PLTE, IDAT, IEND, Count, Unknown };
 
 	// Chunk data type, has requirements for generic construction
 	template<typename T>
 	concept IsChunk = requires (T x)
 	{
-		requires std::is_constructible_v<T, const char*, size_t>;
-
-		requires std::is_default_constructible_v<T>;
+		requires std::is_constructible_v<T, std::basic_ifstream<char>&, uint32_t>;
 	};
 
 	// Generic container for chunk in PNG with auxilliary data
 	template <IsChunk T>
 	struct Chunk
 	{
-		Chunk() : size(), type(), data(), crc() {};
-		Chunk(const char* buffer, size_t size) : size(correct_endian<uint32_t>(buffer)),
-			type(*(uint32_t*)(buffer + sizeof(uint32_t))),
-			data(buffer + sizeof(uint32_t) * 2, size),
-			crc(correct_endian<uint32_t>(buffer + +sizeof(uint32_t)*2 + data.size))
+		Chunk(std::basic_ifstream<char>& input, uint32_t size, uint32_t type) :
+			size(size), 
+			type(type),
+			data(input, size),
+			crc(extract_from_ifstream<uint32_t>(input))
 		{
-			uint32_t computed_crc = CRC::Calculate(buffer + sizeof(uint32_t), sizeof(uint32_t) + size, CRC::CRC_32());
-
+			uint32_t computed_crc = data.getCRC();
 			if (computed_crc != crc)
 			{
 				std::stringstream msg;
@@ -73,31 +94,65 @@ namespace trv
 			}
 		};
 
+		void append(std::basic_ifstream<char>& input, uint32_t size)
+		{
+			data.append(input, size);
+			uint32_t file_crc = extract_from_ifstream<uint32_t>(input);
+			uint32_t computed_crc = data.getCRC();
+
+			if (computed_crc != file_crc)
+			{
+				std::stringstream msg;
+				msg << "Computed CRC " << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << computed_crc
+					<< " doesn't match read CRC " << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << file_crc;
+				throw std::runtime_error(msg.str());
+			}
+		}
+
+		uint32_t getSize()
+		{
+			return 3 * sizeof(uint32_t) + size;
+		};
+
 		uint32_t size;
 		uint32_t type;
 		T data;
 		uint32_t crc;
 	};
-	
+
 
 	struct IHDR
 	{
-		constexpr static size_t size = sizeof(uint32_t) * 2 + sizeof(char) * 5;
 		constexpr static ChunkType type = ChunkType::IHDR;
+		constexpr static char typeStr[] = { 'I','H','D','R' };
 
 		IHDR() = default;
 
-		IHDR(const char* buffer, size_t size)
+		IHDR(std::basic_ifstream<char>& input, uint32_t size)
 		{
-			width = correct_endian<uint32_t>(buffer);
-			height = correct_endian<uint32_t>(buffer + sizeof(uint32_t));
-			bitDepth = correct_endian<char>(buffer + sizeof(uint32_t) * 2);
-			colorType = correct_endian<char>(buffer + sizeof(uint32_t) * 2 + sizeof(char));
-			compressionMethod = correct_endian<char>(buffer + sizeof(uint32_t) * 2 + sizeof(char) * 2);
-			filterMethod = correct_endian<char>(buffer + sizeof(uint32_t) * 2 + sizeof(char) * 3);
-			interlaceMethod = correct_endian<char>(buffer + sizeof(uint32_t) * 2 + sizeof(char) * 4);
+			width = extract_from_ifstream<uint32_t>(input);
+			height = extract_from_ifstream<uint32_t>(input);
+			bitDepth = extract_from_ifstream<char>(input);
+			colorType = extract_from_ifstream<char>(input);
+			compressionMethod = extract_from_ifstream<char>(input);
+			filterMethod = extract_from_ifstream<char>(input);
+			interlaceMethod = extract_from_ifstream<char>(input);
+
+			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
+			uint32_t temp = big_endian<uint32_t>(width);
+			lastCRC = CRC::Calculate(reinterpret_cast<char*>(&temp), sizeof(uint32_t), crc_table, lastCRC);
+			temp = big_endian<uint32_t>(height);
+			lastCRC = CRC::Calculate(reinterpret_cast<char*>(&temp), sizeof(uint32_t), crc_table, lastCRC);
+			lastCRC = CRC::Calculate(&bitDepth, sizeof(char)*5, crc_table, lastCRC);
+
 		};
 
+		uint32_t getCRC()
+		{
+			return lastCRC;
+		}
+
+		uint32_t lastCRC;
 		uint32_t width;
 		uint32_t height;
 		char bitDepth;
@@ -111,27 +166,58 @@ namespace trv
 	struct PLTE
 	{
 		constexpr static ChunkType type = ChunkType::PLTE;
-		PLTE() : size(), pallette() {};
+		constexpr static char typeStr[] = { 'P','L','T','E' };
 
-		PLTE(const char* buffer, size_t size) :
-			size(size),
-			pallette(buffer, buffer + size)
-		{};
-		size_t size;
-		std::vector<char> pallette;
+		PLTE(std::basic_ifstream<char>& input, uint32_t size) :
+			palette(size)
+		{
+			input.read(palette.data(), size);
+
+			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
+			lastCRC = CRC::Calculate(palette.data(), size, crc_table, lastCRC);
+		};
+
+		uint32_t getCRC()
+		{
+			return lastCRC;
+		}
+
+		uint32_t lastCRC;
+		std::vector<char> palette;
 	};
 
 
 	struct IDAT
 	{
 		constexpr static ChunkType type = ChunkType::IDAT;
-		IDAT() : size(), data() {};
+		constexpr static char typeStr[] = { 'I','D','A','T' };
 
-		IDAT(const char* buffer, size_t size) :
-			size(size),
-			data(buffer, buffer + size)
-		{};
-		size_t size;
+		IDAT() {};
+
+		IDAT(std::basic_ifstream<char>& input, uint32_t size) :
+			data(size)
+		{
+			input.read(data.data(), size);
+
+			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
+			lastCRC = CRC::Calculate(data.data(), size, crc_table, lastCRC);
+		};
+
+		void append(std::basic_ifstream<char>& input, uint32_t size)
+		{
+			data.resize(data.size() + size);
+			input.read(data.data() + data.size() - size, size);
+
+			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
+			lastCRC = CRC::Calculate(data.data() + data.size() - size, size, crc_table, lastCRC);
+		}
+
+		uint32_t getCRC()
+		{
+			return lastCRC;
+		}
+
+		uint32_t lastCRC;
 		std::vector<char> data;
 	};
 
@@ -139,10 +225,13 @@ namespace trv
 	struct IEND
 	{
 		constexpr static ChunkType type = ChunkType::IEND;
-		IEND() = default;
+		constexpr static char typeStr[] = { 'I','E','N','D' };
+		IEND(std::basic_ifstream<char>& input, uint32_t size) {};
 
-		IEND(const char* buffer, size_t size) {};
-		constexpr static size_t size = 0;
+		constexpr uint32_t getCRC() const
+		{
+			return 0xAE426082;
+		}
 	};
 
 	// Container for supported chunk types
@@ -151,57 +240,73 @@ namespace trv
 		Chunks() {};
 		std::unique_ptr<Chunk<IHDR>> header;
 		std::unique_ptr<Chunk<PLTE>> pallette;
-		std::vector<Chunk<IDAT>> image_data;
+		std::unique_ptr<Chunk<IDAT>> image_data;
 		std::unique_ptr<Chunk<IEND>> end;
 	};
-	
-	// Recursive compile-time encoding of chunk types
-	constexpr uint32_t encode_type_impl(const char* str, uint32_t val = 0)
-	{
-		return *str ?
-			(val ?
-				encode_type_impl(str + 1, *str) << 8 | val
-				: encode_type_impl(str + 1, *str))
-			: val;
-	}
-
-	// Compile-time encoding of chunk types
-	constexpr uint32_t encode_type(const char* str)
-	{
-		return encode_type_impl(str);
-	}
 
 	// Read PNG file
 	template <typename T>
 	Image<T> load_image(const std::string& path)
 	{
-		std::ifstream infile(path, std::ios_base::binary);
+		std::ifstream infile(path, std::ios_base::binary | std::ios_base::in);
+		if (infile.rdstate() & std::ios_base::failbit)
+		{
+			throw std::runtime_error("TRV::IMAGE::LOAD_IMAGE - Unable to open Image.");
+		}
+		// First thing's first
 
-		std::vector<char> buffer{ std::istreambuf_iterator<char>(infile), std::istreambuf_iterator<char>() };
-
-		const char* head = buffer.data();
-
-		uint64_t file_header = correct_endian<uint64_t>(head);
-		head += sizeof(header);
+		uint64_t file_header = extract_from_ifstream<uint64_t>(infile);
 
 		if (file_header != header)
 		{
-			throw std::runtime_error("Unable to read file, invalid PNG header.");
-		}
-
-		uint32_t size = correct_endian<uint32_t>(head);
-		head += sizeof(size);
-		uint32_t type = *(uint32_t*)head;
-		head -= sizeof(type);
-		
-		constexpr uint32_t ihdr = encode_type("IHDR");
-		if (type != ihdr)
-		{
-			throw std::runtime_error("Unable to parse PNG, IHDR chunk missing.");
+			throw std::runtime_error("TRV::IMAGE::LOAD_IMAGE - Invalid PNG header.");
 		}
 
 		Chunks chunks;
-		chunks.header = std::make_unique<Chunk<IHDR>>(head, size);
+		std::vector<ChunkType> sequence;
+
+		while (infile.peek() != EOF)
+		{
+			uint32_t size = extract_from_ifstream<uint32_t>(infile);
+
+			uint32_t type = extract_from_ifstream<uint32_t>(infile);
+
+			switch (type)
+			{
+				case encode_type("IHDR"):
+					chunks.header = std::make_unique<Chunk<IHDR>>(infile, size, type);
+					sequence.push_back(ChunkType::IHDR);
+					break;
+				case encode_type("PLTE"):
+					chunks.pallette = std::make_unique<Chunk<PLTE>>(infile, size, type);
+					sequence.push_back(ChunkType::PLTE);
+					break;
+				case encode_type("IDAT"):
+					if (chunks.image_data == nullptr)
+					{
+						chunks.image_data = std::make_unique<Chunk<IDAT>>(infile, size, type);
+					}
+					else
+					{
+						chunks.image_data->append(infile, size);
+					}
+					sequence.push_back(ChunkType::IDAT);
+					break;
+				case encode_type("IEND"):
+					chunks.end = std::make_unique<Chunk<IEND>>(infile, size, type);
+					sequence.push_back(ChunkType::IEND);
+					break;
+				default:
+				{
+					uint32_t temp_type = big_endian<uint32_t>(type);
+					char cType[5] = {0};
+					memcpy(cType, &temp_type, 4);
+					infile.seekg(size + sizeof(uint32_t), std::ios_base::cur);
+ 					std::cout << "TRV::IMAGE::LOAD_IMAGE - Skipping unhandled type " << cType << "\n";
+					sequence.push_back(ChunkType::Unknown);
+				}
+			}
+		}
 
 		return Image<T>();
 	}
