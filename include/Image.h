@@ -2,16 +2,17 @@
 
 #include <vector>
 #include <string>
-#include <fstream>
 #include <sstream>
 #include <iomanip>
-#include <bit>
 #include <type_traits>
 #include <memory>
 #include <assert.h>
+#include "Zlib.h"
 
 #define CRCPP_USE_CPP11
 #include "ext/CRC.h"
+
+#include "Common.h"
 
 namespace trv
 {
@@ -20,37 +21,20 @@ namespace trv
 	static const auto& crc_table = CRC::CRC_32().MakeTable();
 
 	// Output type
-	template <typename T>
+	template <std::integral T>
 	struct Image
 	{
+		Image(std::vector<T> data, uint32_t width, uint32_t height, uint32_t channels) :
+			data(data),
+			width(width),
+			height(height),
+			channels(channels)
+		{};
+
 		std::vector<T> data;
 		uint32_t width, height, channels;
 	};
 
-	// Allows reading of integral types from big-endian binary stream
-	template <std::integral T>
-	T extract_from_ifstream(std::basic_ifstream<char>& input) {
-		T val;
-		input.read(reinterpret_cast<char*>(&val), sizeof(val));
-
-		if (std::endian::native == std::endian::little)
-		{
-			val = std::byteswap<T>(val);
-		}
-
-		return val;
-	}
-
-	template <std::integral T>
-	T big_endian(T val)
-	{
-		if (std::endian::native == std::endian::little)
-		{
-			val = std::byteswap<T>(val);
-		}
-
-		return val;
-	}
 	// Compile-time encoding of chunk types
 	constexpr uint32_t encode_type(const char* str)
 	{
@@ -245,7 +229,7 @@ namespace trv
 	};
 
 	// Read PNG file
-	template <typename T>
+	template <std::integral T>
 	Image<T> load_image(const std::string& path)
 	{
 		std::ifstream infile(path, std::ios_base::binary | std::ios_base::in);
@@ -308,6 +292,13 @@ namespace trv
 			}
 		}
 
-		return Image<T>();
+		std::vector<unsigned char> decompressed;
+		DeflateArgs args = { true, decompressed};
+		
+		decompress(chunks.image_data->data.data.data(), args);
+
+		std::vector<T> result(decompressed.begin(), decompressed.end());
+
+		return Image<T>(result, chunks.header->data.width, chunks.header->data.height, 0);
 	}
 }
