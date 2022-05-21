@@ -38,7 +38,7 @@ namespace trv
 	// Compile-time encoding of chunk types
 	constexpr uint32_t encode_type(const char* str)
 	{
-		if (std::endian::native == std::endian::big)
+		if constexpr (std::endian::native == std::endian::big)
 		{
 			return str[0] | str[1] << 8 | str[2] << 16 | str[3] << 24;
 		}
@@ -78,9 +78,9 @@ namespace trv
 			}
 		};
 
-		void append(std::basic_ifstream<char>& input, uint32_t size)
+		void append(std::basic_ifstream<char>& input, uint32_t chunkSize)
 		{
-			data.append(input, size);
+			data.append(input, chunkSize);
 			uint32_t file_crc = extract_from_ifstream<uint32_t>(input);
 			uint32_t computed_crc = data.getCRC();
 
@@ -92,11 +92,6 @@ namespace trv
 				throw std::runtime_error(msg.str());
 			}
 		}
-
-		uint32_t getSize()
-		{
-			return 3 * sizeof(uint32_t) + size;
-		};
 
 		uint32_t size;
 		uint32_t type;
@@ -112,15 +107,15 @@ namespace trv
 
 		IHDR() = default;
 
-		IHDR(std::basic_ifstream<char>& input, uint32_t size)
+		IHDR(std::basic_ifstream<char>& input, uint32_t)
 		{
 			width = extract_from_ifstream<uint32_t>(input);
 			height = extract_from_ifstream<uint32_t>(input);
-			bitDepth = extract_from_ifstream<char>(input);
-			colorType = extract_from_ifstream<char>(input);
-			compressionMethod = extract_from_ifstream<char>(input);
-			filterMethod = extract_from_ifstream<char>(input);
-			interlaceMethod = extract_from_ifstream<char>(input);
+			bitDepth = extract_from_ifstream<uint8_t>(input);
+			colorType = extract_from_ifstream<uint8_t>(input);
+			compressionMethod = extract_from_ifstream<uint8_t>(input);
+			filterMethod = extract_from_ifstream<uint8_t>(input);
+			interlaceMethod = extract_from_ifstream<uint8_t>(input);
 
 			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
 			uint32_t temp = big_endian<uint32_t>(width);
@@ -155,7 +150,7 @@ namespace trv
 		PLTE(std::basic_ifstream<char>& input, uint32_t size) :
 			palette(size)
 		{
-			input.read(palette.data(), size);
+			input.read(reinterpret_cast<char*>(palette.data()), size);
 
 			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
 			lastCRC = CRC::Calculate(palette.data(), size, crc_table, lastCRC);
@@ -167,7 +162,7 @@ namespace trv
 		}
 
 		uint32_t lastCRC;
-		std::vector<char> palette;
+		std::vector<uint8_t> palette;
 	};
 
 
@@ -176,12 +171,11 @@ namespace trv
 		constexpr static ChunkType type = ChunkType::IDAT;
 		constexpr static char typeStr[] = { 'I','D','A','T' };
 
-		IDAT() {};
-
 		IDAT(std::basic_ifstream<char>& input, uint32_t size) :
-			data(size)
+			data(size),
+			lastCRC()
 		{
-			input.read(data.data(), size);
+			input.read(reinterpret_cast<char*>(data.data()), size);
 
 			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
 			lastCRC = CRC::Calculate(data.data(), size, crc_table, lastCRC);
@@ -190,7 +184,7 @@ namespace trv
 		void append(std::basic_ifstream<char>& input, uint32_t size)
 		{
 			data.resize(data.size() + size);
-			input.read(data.data() + data.size() - size, size);
+			input.read(reinterpret_cast<char *>(data.data() + data.size() - size), size);
 
 			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
 			lastCRC = CRC::Calculate(data.data() + data.size() - size, size, crc_table, lastCRC);
@@ -202,7 +196,7 @@ namespace trv
 		}
 
 		uint32_t lastCRC;
-		std::vector<char> data;
+		std::vector<uint8_t> data;
 	};
 
 
@@ -210,7 +204,7 @@ namespace trv
 	{
 		constexpr static ChunkType type = ChunkType::IEND;
 		constexpr static char typeStr[] = { 'I','E','N','D' };
-		IEND(std::basic_ifstream<char>& input, uint32_t size) {};
+		IEND(std::basic_ifstream<char>&, uint32_t) {};
 
 		constexpr uint32_t getCRC() const
 		{
@@ -292,10 +286,10 @@ namespace trv
 			}
 		}
 
-		std::vector<unsigned char> decompressed;
-		DeflateArgs args = { true, decompressed};
+		std::vector<uint8_t> decompressed;
+		DeflateArgs args = { true, chunks.image_data->data.data, decompressed};
 		
-		decompress(chunks.image_data->data.data.data(), args);
+		decompress(args);
 
 		std::vector<T> result(decompressed.begin(), decompressed.end());
 
