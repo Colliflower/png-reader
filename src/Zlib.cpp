@@ -78,22 +78,22 @@ namespace trv
 				uint16_t HDIST = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
 				uint16_t HCLEN = deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
 
-				size_t HCLENSwizzle[] =
+				std::array<size_t, 19> HCLENSwizzle =
 				{
 					16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
 				};
 
-				uint16_t HCLENTable[19] = {};
+				std::array<uint16_t,19> HCLENTable {};
 
 				for (uint32_t i = 0; i < HCLEN; ++i)
 				{
 					HCLENTable[HCLENSwizzle[i]] = deflateConsumer.consume_bits<uint16_t, std::endian::little>(3);
 				}
 
-				Huffman<uint16_t> dictHuffman(7, 19, HCLENTable);
-				uint32_t litLenDistTable[512] = {};
+				Huffman<uint16_t> dictHuffman(7, 19, HCLENTable.data());
 				uint16_t litLenCount = 0;
 				uint16_t lenCount = HLIT + HDIST;
+				std::vector<uint32_t> litLenDistTable(lenCount);
 
 				while (litLenCount < lenCount)
 				{
@@ -103,7 +103,7 @@ namespace trv
 
 					if (encodedLen <= 15)
 					{
-						litLenDistTable[litLenCount++] = encodedLen;
+						repeated = encodedLen;
 					}
 					else if (encodedLen == 16)
 					{
@@ -135,36 +135,44 @@ namespace trv
 					}
 				}
 
-				Huffman<uint32_t> LitLenHuffman(15, HLIT, litLenDistTable);
-				Huffman<uint32_t> DistHuffman(15, HDIST, litLenDistTable + HLIT);
+				Huffman<uint32_t> LitLenHuffman(15, HLIT, litLenDistTable.data());
+				Huffman<uint32_t> DistHuffman(15, HDIST, litLenDistTable.data() + HLIT);
 
-				uint32_t litLen = LitLenHuffman.decode(deflateConsumer);
-
-				if (litLen < 256) // Literal
+				while (true)
 				{
-					output.push_back(static_cast<uint8_t>(litLen));
-				}
-				else if (litLen >= 257) // Length
-				{
-					assert(litLen <= 285);
-					uint8_t lenIndex = static_cast<uint8_t>(litLen - 257);
-					uint16_t length = lengthExtraTable[lenIndex * 2];
-					length += deflateConsumer.consume_bits<uint16_t, std::endian::little>(lengthExtraTable[lenIndex * 2 + 1]);
+					uint32_t litLen = LitLenHuffman.decode(deflateConsumer);
 
-					uint32_t distIndex = DistHuffman.decode(deflateConsumer);
-					assert(distIndex < 30);
-					uint16_t distance = distanceExtraTable[distIndex * 2];
-					distance += deflateConsumer.consume_bits<uint16_t, std::endian::little>(distanceExtraTable[distIndex * 2 + 1]);
+					if (litLen < 256) // Literal
+					{
+						output.push_back(static_cast<uint8_t>(litLen));
+					}
+					else if (litLen >= 257) // Length
+					{
+						assert(litLen <= 285);
+						uint8_t lenIndex = static_cast<uint8_t>(litLen - 257);
+						uint16_t length = lengthExtraTable[lenIndex * 2];
+						size_t extraLengthBits = lengthExtraTable[lenIndex * 2 + 1];
+						length += deflateConsumer.consume_bits<uint16_t, std::endian::little>(extraLengthBits);
 
-					assert(output.size() > distance);
-					assert(distance < window);
-					size_t offset = output.size() - distance;
-					output.reserve(output.size() + length);
-					std::copy_n(output.begin() + offset, length, std::back_inserter(output));
-				}
-				else // End of block
-				{
-					break;
+						uint32_t distIndex = DistHuffman.decode(deflateConsumer);
+						assert(distIndex < 30);
+						uint16_t distance = distanceExtraTable[distIndex * 2];
+						size_t extraDistanceBits = distanceExtraTable[distIndex * 2 + 1];
+						distance += deflateConsumer.consume_bits<uint16_t, std::endian::little>(extraDistanceBits);
+
+						assert(output.size() > distance);
+						assert(distance < window);
+						size_t offset = output.size() - distance;
+						output.reserve(output.size() + length);
+						for (int from = offset; from < offset + length; ++from)
+						{
+							output.push_back(output[from]);
+						}
+					}
+					else // End of block
+					{
+						break;
+					}
 				}
 			}
 
