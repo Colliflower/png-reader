@@ -63,10 +63,10 @@ namespace trv
 					throw std::runtime_error("TRV::ZLIB::DECOMPRESS Unable to read properly, LEN and NLEN don't line up.");
 				}
 
-				// TODO: Add a method to BitConsumer to copy a length of data to an output vector;
-				//output.reserve(output.size() + len);
-				//output.insert(output.end(), input, input + len);
-				//input += len;
+				for (int i = 0; i < len; ++i)
+				{
+					output.push_back(deflateConsumer.consume_bits<uint8_t, std::endian::little>(8));
+				}
 			}
 			else if (type == BTYPES::Err)
 			{
@@ -74,73 +74,113 @@ namespace trv
 			}
 			else
 			{
-				uint16_t HLIT = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 257;
-				uint16_t HDIST = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
-				uint16_t HCLEN = deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
-
-				std::array<size_t, 19> HCLENSwizzle =
+				std::unique_ptr<Huffman<uint32_t>> LitLenHuffman, DistHuffman;
+				if (type == BTYPES::DynamicHuff)
 				{
-					16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
-				};
+					uint16_t HLIT = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 257;
+					uint16_t HDIST = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
+					uint16_t HCLEN = deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
 
-				std::array<uint16_t,19> HCLENTable {};
-
-				for (uint32_t i = 0; i < HCLEN; ++i)
-				{
-					HCLENTable[HCLENSwizzle[i]] = deflateConsumer.consume_bits<uint16_t, std::endian::little>(3);
-				}
-
-				Huffman<uint16_t> dictHuffman(7, 19, HCLENTable.data());
-				uint16_t litLenCount = 0;
-				uint16_t lenCount = HLIT + HDIST;
-				std::vector<uint32_t> litLenDistTable(lenCount);
-
-				while (litLenCount < lenCount)
-				{
-					uint16_t repetitions = 1;
-					uint16_t repeated = 0;
-					uint16_t encodedLen = dictHuffman.decode(deflateConsumer);
-
-					if (encodedLen <= 15)
+					std::array<size_t, 19> HCLENSwizzle =
 					{
-						repeated = encodedLen;
+						16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
+					};
+
+					std::array<uint16_t, 19> HCLENTable{};
+
+					for (uint32_t i = 0; i < HCLEN; ++i)
+					{
+						HCLENTable[HCLENSwizzle[i]] = deflateConsumer.consume_bits<uint16_t, std::endian::little>(3);
 					}
-					else if (encodedLen == 16)
+
+					Huffman<uint16_t> dictHuffman(8, 19, HCLENTable.data());
+					uint16_t litLenCount = 0;
+					uint16_t lenCount = HLIT + HDIST;
+					std::vector<uint32_t> litLenDistTable(lenCount);
+
+					while (litLenCount < lenCount)
 					{
-						if (!litLenCount)
+						uint16_t repetitions = 1;
+						uint16_t repeated = 0;
+						uint16_t encodedLen = dictHuffman.decode(deflateConsumer);
+
+						if (encodedLen <= 15)
 						{
-							throw std::runtime_error("TRV::ZLIB::DECOMPRESS Repeat code found on first pass, therefore nothing can be repeated.");
+							repeated = encodedLen;
 						}
-						repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(2) + 3;
-#pragma warning ( suppress: 6385 ) // 16 cannot appear before <= 15 according to the deflate specificaition ^ I check there in case of corrupt data.
-						repeated = static_cast<uint16_t>(litLenDistTable[litLenCount - 1]);
+						else if (encodedLen == 16)
+						{
+							if (!litLenCount)
+							{
+								throw std::runtime_error("TRV::ZLIB::DECOMPRESS Repeat code found on first pass, therefore nothing can be repeated.");
+							}
+							repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(2) + 3;
+#pragma warning ( suppress: 6385 ) // 16 cannot appear before <= 15 according to the deflate specificaition ^ I check above in case of corrupt data.
+							repeated = static_cast<uint16_t>(litLenDistTable[litLenCount - 1]);
 
-					}
-					else if (encodedLen == 17)
-					{
-						repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(3) + 3;
-					}
-					else if (encodedLen == 18)
-					{
-						repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(7) + 11;
-					}
-					else
-					{
-						throw std::runtime_error("TRV::ZLIB::DECOMPRESS Unexpected encoded length.");
+						}
+						else if (encodedLen == 17)
+						{
+							repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(3) + 3;
+						}
+						else if (encodedLen == 18)
+						{
+							repetitions = deflateConsumer.consume_bits<uint16_t, std::endian::little>(7) + 11;
+						}
+						else
+						{
+							throw std::runtime_error("TRV::ZLIB::DECOMPRESS Unexpected encoded length.");
+						}
+
+						while (repetitions--)
+						{
+							litLenDistTable[litLenCount++] = repeated;
+						}
 					}
 
-					while (repetitions--)
-					{
-						litLenDistTable[litLenCount++] = repeated;
-					}
+					LitLenHuffman = std::make_unique<Huffman<uint32_t>>(15, HLIT, litLenDistTable.data());
+					DistHuffman = std::make_unique<Huffman<uint32_t>>(15, HDIST, litLenDistTable.data() + HLIT);
 				}
-
-				Huffman<uint32_t> LitLenHuffman(15, HLIT, litLenDistTable.data());
-				Huffman<uint32_t> DistHuffman(15, HDIST, litLenDistTable.data() + HLIT);
 
 				while (true)
 				{
-					uint32_t litLen = LitLenHuffman.decode(deflateConsumer);
+					uint32_t litLen;
+					if (type == BTYPES::DynamicHuff)
+					{
+						 litLen = LitLenHuffman->decode(deflateConsumer);
+					}
+					else
+					{
+						uint16_t code = deflateConsumer.peek_bits<uint16_t, std::endian::big>(9);
+						uint16_t bits = 0;
+
+						if (code >= FIXED_LIT_0_143_LOWER && code <= FIXED_LIT_0_143_UPPER)
+						{
+							litLen = (code >> 1) - FIXED_LIT_0_143_ROOT + FIXED_LIT_0_143_OFFSET;
+							bits = FIXED_LIT_0_143_LENGTH;
+						}
+						else if (code >= FIXED_LIT_144_255_LOWER && code <= FIXED_LIT_144_255_UPPER)
+						{
+							litLen = code - FIXED_LIT_144_255_ROOT + FIXED_LIT_144_255_OFFSET;
+							bits = FIXED_LIT_144_255_LENGTH;
+						}
+						else if (code >= FIXED_LIT_256_279_LOWER && code <= FIXED_LIT_256_279_UPPER)
+						{
+							litLen = code - FIXED_LIT_256_279_ROOT + FIXED_LIT_256_279_OFFSET;
+							bits = FIXED_LIT_256_279_LENGTH;
+						}
+						else if (code >= FIXED_LIT_280_287_LOWER && code <= FIXED_LIT_280_287_UPPER)
+						{
+							litLen = code - FIXED_LIT_280_287_ROOT + FIXED_LIT_280_287_OFFSET;
+							bits = FIXED_LIT_280_287_LENGTH;
+						}
+						else
+						{
+							throw std::runtime_error("TRV::ZLIB::DECOMPRES Invalid code encountered in fixed huffman.");
+						}
+
+						deflateConsumer.discard_bits(bits);
+					}
 
 					if (litLen < 256) // Literal
 					{
@@ -154,7 +194,17 @@ namespace trv
 						size_t extraLengthBits = lengthExtraTable[lenIndex * 2 + 1];
 						length += deflateConsumer.consume_bits<uint16_t, std::endian::little>(extraLengthBits);
 
-						uint32_t distIndex = DistHuffman.decode(deflateConsumer);
+						uint32_t distIndex;
+
+						if (type == BTYPES::DynamicHuff)
+						{
+							distIndex = DistHuffman->decode(deflateConsumer);
+						}
+						else
+						{
+							distIndex = deflateConsumer.consume_bits<uint32_t, std::endian::big>(5);
+						}
+
 						assert(distIndex < 30);
 						uint16_t distance = distanceExtraTable[distIndex * 2];
 						size_t extraDistanceBits = distanceExtraTable[distIndex * 2 + 1];
@@ -164,7 +214,7 @@ namespace trv
 						assert(distance < window);
 						size_t offset = output.size() - distance;
 						output.reserve(output.size() + length);
-						for (int from = offset; from < offset + length; ++from)
+						for (size_t from = offset; from < offset + length; ++from)
 						{
 							output.push_back(output[from]);
 						}
@@ -176,7 +226,6 @@ namespace trv
 				}
 			}
 
-			return;
 		}
 	}
 }

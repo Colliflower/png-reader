@@ -12,52 +12,12 @@ namespace trv
 		T val;
 		input.read(reinterpret_cast<char*>(&val), sizeof(val));
 
-		if constexpr (std::endian::native == std::endian::little)
+		if constexpr (std::endian::native == std::endian::little && sizeof(T) > 1)
 		{
 			val = std::byteswap<T>(val);
 		}
 
 		return val;
-	}
-
-	// Extract T from byte stream and advance pointer head.
-	template <std::integral T>
-	T extract_from_msb_bytes(uint8_t** input) {
-		T val = *reinterpret_cast<T*>(*input);
-		*input += sizeof(T);
-
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			val = std::byteswap<T>(val);
-		}
-
-		return val;
-	}
-
-	template <>
-	inline uint8_t extract_from_msb_bytes<uint8_t>(uint8_t** input)
-	{
-		return *((*input)++);
-	}
-	
-	// Extract T from byte stream and advance pointer head.
-	template <std::integral T>
-	T extract_from_lsb_bytes(uint8_t** input) {
-		T val = *reinterpret_cast<T*>(*input);
-		*input += sizeof(T);
-
-		if (std::endian::native == std::endian::big)
-		{
-			val = std::byteswap<T>(val);
-		}
-
-		return val;
-	}
-
-	template <>
-	inline uint8_t extract_from_lsb_bytes<uint8_t>(uint8_t** input)
-	{
-		return *((*input)++);
 	}
 
 	// Swap bytes in memory if system is little endian.

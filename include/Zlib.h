@@ -33,22 +33,22 @@ namespace trv
 	{
 	public:
 		BitConsumer(const std::vector<uint8_t>& input) :
-			input(input)
+			m_input(input)
 		{
 		};
 		
 		template<std::endian Other>
 		BitConsumer(const BitConsumer<Other>& other) :
-			input(other.input),
-			bitsConsumed(other.bitsConsumed),
-			bytesConsumed(other.bytesConsumed)
+			m_input(other.m_input),
+			m_bitsConsumed(other.m_bitsConsumed),
+			m_bytesConsumed(other.m_bytesConsumed)
 		{
 		};
 
 		template<std::integral T, std::endian outputBitType>
 		T peek_bits(size_t bits)
 		{
-			assert(bitsConsumed < 8);
+			assert(m_bitsConsumed < 8);
 
 			if (!bits)
 			{
@@ -58,30 +58,30 @@ namespace trv
 			uint64_t result = 0;
 			uint64_t val = 0;
 
-			size_t bytesRequested = ((bits + bitsConsumed + 7) / 8) - 1;
+			size_t bytesRequested = ((bits + m_bitsConsumed + 7) / 8) - 1;
 
 			for (size_t byte = 0; byte <= bytesRequested; ++byte)
 			{
 				if constexpr (inputByteType == std::endian::little)
 				{
-					val |= static_cast<uint64_t>(input[bytesConsumed + byte]) << (byte * 8);
+					val |= static_cast<uint64_t>(m_input[m_bytesConsumed + byte]) << (byte * 8);
 				}
 				else
 				{
-					val |= static_cast<uint64_t>(input[bytesConsumed + byte]) << ((bytesRequested - byte) * 8);
+					val |= static_cast<uint64_t>(m_input[m_bytesConsumed + byte]) << ((bytesRequested - byte) * 8);
 				}
 			}
 
 			if constexpr (inputByteType == std::endian::little)
 			{
-				val = val >> bitsConsumed;
+				val = val >> m_bitsConsumed;
 			}
 			else
 			{
 				// mask off previously used bits
-				val &= (1ull << static_cast<uint64_t>((bytesRequested + 1ull) * 8ull - bitsConsumed)) - 1ull;
+				val &= (1ull << static_cast<uint64_t>((bytesRequested + 1ull) * 8ull - m_bitsConsumed)) - 1ull;
 				// shift away bits that will be unused
-				val = val >> (((bytesRequested + 1ull)* 8ull) - bits - bitsConsumed);
+				val = val >> (((bytesRequested + 1ull)* 8ull) - bits - m_bitsConsumed);
 			}
 
 			if constexpr (inputByteType != outputBitType)
@@ -107,14 +107,14 @@ namespace trv
 
 		void discard_bits(size_t bits)
 		{
-			bytesConsumed += (bitsConsumed + bits) / 8;
-			bitsConsumed = (bitsConsumed + bits) % 8;
+			m_bytesConsumed += (m_bitsConsumed + bits) / 8;
+			m_bitsConsumed = (m_bitsConsumed + bits) % 8;
 		};
 
 		void flush_byte()
 		{
-			bytesConsumed++;
-			bitsConsumed = 0;
+			m_bytesConsumed++;
+			m_bitsConsumed = 0;
 		}
 
 		template <typename T, std::endian outputBitType>
@@ -125,12 +125,16 @@ namespace trv
 			return result;
 		}
 
-		uint8_t bitsConsumed = 0;
-		size_t bytesConsumed = 0;
-		const std::vector<uint8_t>& input;
+	private:
+		uint8_t m_bitsConsumed = 0;
+		size_t m_bytesConsumed = 0;
+		const std::vector<uint8_t>& m_input;
+	
+		template <std::endian otherBitType>
+		friend class BitConsumer;
 	};
 
-	static const std::array<uint16_t, 29 * 2> lengthExtraTable =
+	static constexpr std::array<uint16_t, 29 * 2> lengthExtraTable =
 	{
 		//Initial ExtraBits
 			  3,      0, // 257 |  0
@@ -164,7 +168,7 @@ namespace trv
 			258,      0	 // 285	| 28
 	};
 
-	static const std::array<uint16_t, 30 * 2> distanceExtraTable =
+	static constexpr std::array<uint16_t, 30 * 2> distanceExtraTable =
 	{
     //Initial ExtraBits
 			1,    0,  //  0
@@ -199,6 +203,36 @@ namespace trv
 		24577,   13   // 29
 	};
 
+	static constexpr uint16_t FIXED_LIT_0_143_LOWER    = 0b001100000;
+	static constexpr uint16_t FIXED_LIT_0_143_UPPER    = 0b101111111;
+	static constexpr uint16_t FIXED_LIT_0_143_ROOT     = 0b00110000;
+	static constexpr uint16_t FIXED_LIT_0_143_OFFSET   = 0;
+	static constexpr uint16_t FIXED_LIT_0_143_LENGTH   = 8;
+
+	static constexpr uint16_t FIXED_LIT_144_255_LOWER  = 0b110010000;
+	static constexpr uint16_t FIXED_LIT_144_255_UPPER  = 0b111111111;
+	static constexpr uint16_t FIXED_LIT_144_255_ROOT   = 0b110010000;
+	static constexpr uint16_t FIXED_LIT_144_255_OFFSET = 144;
+	static constexpr uint16_t FIXED_LIT_144_255_LENGTH = 9;
+
+	static constexpr uint16_t FIXED_LIT_256_279_LOWER  = 0b000000000;
+	static constexpr uint16_t FIXED_LIT_256_279_UPPER  = 0b001011100;
+	static constexpr uint16_t FIXED_LIT_256_279_ROOT   = 0b0000000;
+	static constexpr uint16_t FIXED_LIT_256_279_OFFSET = 256;
+	static constexpr uint16_t FIXED_LIT_256_279_LENGTH = 7;
+
+	static constexpr uint16_t FIXED_LIT_280_287_LOWER  = 0b110000000;
+	static constexpr uint16_t FIXED_LIT_280_287_UPPER  = 0b110001111;
+	static constexpr uint16_t FIXED_LIT_280_287_ROOT   = 0b11000000;
+	static constexpr uint16_t FIXED_LIT_280_287_OFFSET = 280;
+	static constexpr uint16_t FIXED_LIT_280_287_LENGTH = 8;
+
+	struct FixedHuffmanBitLengths
+	{
+		uint16_t maxIndex;
+		uint16_t bitLength;
+	};
+
 	template <std::integral T>
 	struct Huffman
 	{
@@ -209,8 +243,8 @@ namespace trv
 		};
 
 		Huffman(uint8_t maxCodeLengthInBits, uint32_t symbolCount, T* symbolCodeLength, T symbolAddend = 0) :
-			maxCodeLengthInBits(maxCodeLengthInBits),
-			entries(1ull << maxCodeLengthInBits)
+			m_maxCodeLengthInBits(maxCodeLengthInBits),
+			m_entries(1ull << maxCodeLengthInBits)
 		{
  			std::vector<T> codeLengthHistogram(maxCodeLengthInBits);
 
@@ -218,7 +252,7 @@ namespace trv
 			{
 				assert(symbolCodeLength[symbolIndex] < maxCodeLengthInBits);
 				++codeLengthHistogram[symbolCodeLength[symbolIndex]];
-				assert((symbolCodeLength[symbolIndex] == 0) || (codeLengthHistogram[symbolCodeLength[symbolIndex]] < (1 << symbolCodeLength[symbolIndex])));
+				assert((symbolCodeLength[symbolIndex] == 0) || (codeLengthHistogram[symbolCodeLength[symbolIndex]] < (static_cast<T>(1) << symbolCodeLength[symbolIndex])));
 			}
 			
 			std::vector<T> nextCode(codeLengthHistogram.size());
@@ -241,11 +275,11 @@ namespace trv
 
 				assert(code <= ((1u << (codeLengthInBits + 1u)) - 1u));
 
-				uint32_t postpendBits = maxCodeLengthInBits - codeLengthInBits;
+				uint32_t postpendBits = m_maxCodeLengthInBits - codeLengthInBits;
 				for (uint32_t postpend = 0; postpend < (1u << postpendBits); ++postpend)
 				{
 					uint32_t entryIndex = (code << postpendBits) | postpend;
-					Entry& entry = entries[entryIndex];
+					Entry& entry = m_entries[entryIndex];
 					entry.symbol = symbolIndex + symbolAddend;
 
 					assert(codeLengthInBits < sizeof(T) * 8);
@@ -256,8 +290,8 @@ namespace trv
 
 		T decode(BitConsumer <std::endian::little>& consumer)
 		{	  
-			uint32_t entryIndex = consumer.peek_bits<uint32_t, std::endian::big>(maxCodeLengthInBits);
-			Entry& entry = entries[entryIndex];
+			uint32_t entryIndex = consumer.peek_bits<uint32_t, std::endian::big>(m_maxCodeLengthInBits);
+			Entry& entry = m_entries[entryIndex];
 			
 			if (!entry.bitsUsed)
 			{
@@ -269,8 +303,9 @@ namespace trv
 			return result;
 		};
 
-		uint32_t maxCodeLengthInBits;
-		std::vector<Entry> entries;
+	private:
+		uint32_t m_maxCodeLengthInBits;
+		std::vector<Entry> m_entries;
 	};
 
 	void decompress(DeflateArgs& args);
