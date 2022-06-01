@@ -3,11 +3,13 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <iostream>
 #include <iomanip>
 #include <type_traits>
 #include <memory>
 #include <assert.h>
 #include "Zlib.h"
+#include "Filter.h"
 
 #define CRCPP_USE_CPP11
 #include "ext/CRC.h"
@@ -17,11 +19,8 @@
 namespace trv
 {
 	//Expected first 8 bytes of all PNG files
-	static constexpr uint64_t header = 0x89504e470d0a1a0a;
+	static constexpr uint64_t header_signature = 0x89504e470d0a1a0a;
 	static const auto& crc_table = CRC::CRC_32().MakeTable();
-	enum class InterlaceMethod : uint8_t { None, Adam7 };
-	enum class FilterMethod : uint8_t {None, Sub, Up, Average, Paeth };
-	enum class ColorType : uint8_t { Palette = 0b001, Color = 0b010, Alpha = 0b100 };
 
 	// Output type
 	template <std::integral T>
@@ -215,28 +214,6 @@ namespace trv
 		}
 	};
 
-	static uint8_t paethPredictor(uint8_t left, uint8_t top, uint8_t topleft)
-	{
-		int32_t p = static_cast<uint16_t>(left + top - topleft);
-		int32_t pleft = p > left ? p - left : left - p;
-		int32_t ptop = p > top ? p - top : top - p;
-		int32_t ptopleft = p > topleft ? p - topleft : topleft - p;
-
-
-		if (pleft <= ptop && pleft <= ptopleft)
-		{
-			return static_cast<uint8_t>(pleft);
-		}
-		else if (ptop <= ptopleft)
-		{
-			return static_cast<uint8_t>(ptop);
-		}
-		else
-		{
-			return static_cast<uint8_t>(ptopleft);
-		}
-	};
-
 	// Container for supported chunk types
 	struct Chunks
 	{
@@ -260,7 +237,7 @@ namespace trv
 
 		uint64_t file_header = extract_from_ifstream<uint64_t>(infile);
 
-		if (file_header != header)
+		if (file_header != header_signature)
 		{
 			throw std::runtime_error("TRV::IMAGE::LOAD_IMAGE - Invalid PNG header.");
 		}
@@ -312,105 +289,24 @@ namespace trv
 		}
 
 		std::vector<uint8_t> decompressed;
-		DeflateArgs args = { true, chunks.image_data->data.data, decompressed};
+		DeflateArgs decompressArgs { true, chunks.image_data->data.data, decompressed};
 		
-		decompress(args);
+		decompress(decompressArgs);
 
 		IHDR& header = chunks.header->data;
+		std::vector<T> output;
 
-		size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) ? 3 : 1) + 
-			              ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) ? 1 : 0);
+		FilterArgs unfilterArgs = { decompressed, header, output};
+		unfilter<T>(unfilterArgs);
 
-		size_t bpp = header.bitDepth * (( header.colorType & static_cast<uint8_t>(ColorType::Palette)) ? 1 : channels);
-		channels = (header.colorType & static_cast<uint8_t>(ColorType::Palette)) ? 3 : channels;
-		bpp = (bpp + 7) / 8;
+		size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
+                          ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
+		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
+		channels = usesPalette ? 3 : channels;
 
-		size_t byteWidth = bpp * header.width + 1;
+		assert(usesPallette || output.size() == header.width * header.height * channels);
+		assert(!usesPallette || output.size() == header.width * header.height * 1);
 
-		assert(decompressed.size() == (byteWidth * header.height));
-
-		std::vector<T> unfiltered;
-		unfiltered.reserve(header.width * header.height * channels);
-
-		switch (static_cast<InterlaceMethod>(header.interlaceMethod))
-		{
-		case InterlaceMethod::None:
-		{
-			for (size_t scanline = 0; scanline < header.height; ++scanline)
-			{
-				assert(decompressed[scanline * byteWidth] <= 4);
-				FilterMethod filterType = static_cast<FilterMethod>(decompressed[scanline * byteWidth]);
-				
-				if (filterType == FilterMethod::None ||
-					(filterType == FilterMethod::Up && scanline == 0))
-				{
-					std::copy(decompressed.begin() + (scanline * byteWidth + 1), decompressed.begin() + (scanline * byteWidth + byteWidth), std::back_inserter(unfiltered));
-					continue;
-				}
-
-				for (size_t byte = 1; byte < byteWidth; ++byte)
-				{
-					switch (static_cast<FilterMethod>(filterType))
-					{
-					case FilterMethod::Sub:
-						if (byte <= bpp)
-						{
-							unfiltered.push_back(decompressed[scanline * byteWidth + byte]);
-						}
-						else
-						{
-							unfiltered.push_back(decompressed[scanline * byteWidth + byte] + unfiltered[unfiltered.size() - bpp]);
-						}
-						break;
-					case FilterMethod::Up:
-						unfiltered.push_back(decompressed[scanline * byteWidth + byte] + decompressed[(scanline - 1) * byteWidth + byte]);
-						break;
-					case FilterMethod::Average:
-					case FilterMethod::Paeth:
-					{
-						uint8_t top = 0;
-						uint8_t left = 0;
-						uint8_t topleft = 0;
-
-						if (scanline != 0 && byte > 1)
-							topleft = decompressed[(scanline - 1) * byteWidth + byte - bpp];
-
-						if (scanline != 0)
-							top = decompressed[(scanline - 1) * byteWidth + byte];
-
-						if (byte > 1)
-							left = decompressed[scanline * byteWidth + byte - bpp];
-
-						if (left == 0 && left == top && top == topleft)
-						{
-							unfiltered.push_back(decompressed[scanline * byteWidth + byte]);
-							break;
-						}
-
-						if (filterType == FilterMethod::Average)
-							unfiltered.push_back(decompressed[scanline * byteWidth + byte] + static_cast<uint8_t>(static_cast<uint16_t>(top + left) / 2));
-						else
-							unfiltered.push_back(decompressed[scanline * byteWidth + byte] + paethPredictor(left, top, topleft));
-						break;
-					}
-					default:
-						throw std::runtime_error("TRV::IMAGE::LOAD_IMAGE Encountered unexpected filter type.");
-						break;
-					}
-				}
-				assert(unfiltered.size() == header.width * (scanline + 1)* channels);
-			}
-			break;
-		}
-		case InterlaceMethod::Adam7:
-			break;
-		default:
-			throw std::runtime_error("Unexpected interlace method.");
-			break;
-		}
-
-		assert(unfiltered.size() == header.width * header.height * channels);
-
-		return Image<T>(unfiltered, chunks.header->data.width, chunks.header->data.height, channels);
+		return Image<T>(output, chunks.header->data.width, chunks.header->data.height, static_cast<uint32_t>(channels));
 	}
 }

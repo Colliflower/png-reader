@@ -138,8 +138,8 @@ namespace trv
 						}
 					}
 
-					LitLenHuffman = std::make_unique<Huffman<uint32_t>>(15, HLIT, litLenDistTable.data());
-					DistHuffman = std::make_unique<Huffman<uint32_t>>(15, HDIST, litLenDistTable.data() + HLIT);
+					LitLenHuffman = std::make_unique<Huffman<uint32_t>>(16, HLIT, litLenDistTable.data());
+					DistHuffman = std::make_unique<Huffman<uint32_t>>(16, HDIST, litLenDistTable.data() + HLIT);
 				}
 
 				while (true)
@@ -156,22 +156,22 @@ namespace trv
 
 						if (code >= FIXED_LIT_0_143_LOWER && code <= FIXED_LIT_0_143_UPPER)
 						{
-							litLen = (code >> 1) - FIXED_LIT_0_143_ROOT + FIXED_LIT_0_143_OFFSET;
+							litLen = (code >> (9 - FIXED_LIT_0_143_LENGTH)) - FIXED_LIT_0_143_ROOT + FIXED_LIT_0_143_OFFSET;
 							bits = FIXED_LIT_0_143_LENGTH;
 						}
 						else if (code >= FIXED_LIT_144_255_LOWER && code <= FIXED_LIT_144_255_UPPER)
 						{
-							litLen = code - FIXED_LIT_144_255_ROOT + FIXED_LIT_144_255_OFFSET;
+							litLen = (code >> (9 - FIXED_LIT_144_255_LENGTH)) - FIXED_LIT_144_255_ROOT + FIXED_LIT_144_255_OFFSET;
 							bits = FIXED_LIT_144_255_LENGTH;
 						}
 						else if (code >= FIXED_LIT_256_279_LOWER && code <= FIXED_LIT_256_279_UPPER)
 						{
-							litLen = code - FIXED_LIT_256_279_ROOT + FIXED_LIT_256_279_OFFSET;
+							litLen = (code >> (9 - FIXED_LIT_256_279_LENGTH)) - FIXED_LIT_256_279_ROOT + FIXED_LIT_256_279_OFFSET;
 							bits = FIXED_LIT_256_279_LENGTH;
 						}
 						else if (code >= FIXED_LIT_280_287_LOWER && code <= FIXED_LIT_280_287_UPPER)
 						{
-							litLen = code - FIXED_LIT_280_287_ROOT + FIXED_LIT_280_287_OFFSET;
+							litLen = (code >> (9 - FIXED_LIT_280_287_LENGTH)) - FIXED_LIT_280_287_ROOT + FIXED_LIT_280_287_OFFSET;
 							bits = FIXED_LIT_280_287_LENGTH;
 						}
 						else

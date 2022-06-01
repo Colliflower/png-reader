@@ -6,6 +6,10 @@
 
 namespace trv
 {
+	enum class InterlaceMethod : uint8_t { None, Adam7 };
+	enum class FilterMethod : uint8_t { None, Sub, Up, Average, Paeth };
+	enum class ColorType : uint8_t { Palette = 0b001, Color = 0b010, Alpha = 0b100 };
+
 	// Allows reading of integral types from big-endian binary stream
 	template <std::integral T>
 	T extract_from_ifstream(std::basic_ifstream<char>& input) {
