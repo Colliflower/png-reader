@@ -7,12 +7,14 @@ namespace trv
 {
 
 	struct IHDR;
+	struct PLTE;
 
 	template <typename T>
 	struct FilterArgs
 	{
 		std::vector<uint8_t>& input;
 		IHDR& header;
+		PLTE* palette;
 		std::vector<T>& output;
 	};
 
@@ -54,7 +56,16 @@ namespace trv
 					if (header.bitDepth <= 8)
 					{
 						uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
-						args.output.push_back(static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << header.bitDepth) - 1ul)));
+						if (!usesPalette)
+						{
+							args.output.push_back(static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << header.bitDepth) - 1ul)));
+						}
+						else
+						{
+							args.output.push_back(args.palette->data[val * 3]);
+							args.output.push_back(args.palette->data[val * 3 + 1]);
+							args.output.push_back(args.palette->data[val * 3 + 2]);
+						}
 					}
 					else
 					{
@@ -94,10 +105,30 @@ namespace trv
 					{
 						size_t outRow = (inRow * rowStride[pass] + rowStart[pass]);
 						size_t outCol = (inCol * colStride[pass] + colStart[pass]) * channels;
-						for (size_t channel = 0; channel < channels; ++channel)
+
+						if (!usesPalette)
 						{
-							assert(args.output[outRow * header.width * channels + outCol + channel] == 0);
-							args.output[outRow * header.width * channels + outCol + channel] = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+							for (size_t channel = 0; channel < channels; ++channel)
+							{
+								assert(args.output[outRow * header.width * channels + outCol + channel] == 0);
+								if (header.bitDepth <= 8)
+								{
+									uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+									args.output[outRow * header.width * channels + outCol + channel] = static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << header.bitDepth) - 1ul));
+								}
+								else
+								{
+									uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
+									args.output[outRow * header.width * channels + outCol + channel] = static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << 16) - 1ul));
+								}
+							}
+						}
+						else
+						{
+							uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+							args.output[outRow * header.width * channels + outCol] = args.palette->data[val * 3];
+							args.output[outRow * header.width * channels + outCol + 1] = args.palette->data[val * 3 + 1];
+							args.output[outRow * header.width * channels + outCol + 2] = args.palette->data[val * 3 + 2];
 						}
 					}
 				}

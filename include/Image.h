@@ -150,12 +150,12 @@ namespace trv
 		constexpr static char typeStr[] = { 'P','L','T','E' };
 
 		PLTE(std::basic_ifstream<char>& input, uint32_t size) :
-			palette(size)
+			data(size)
 		{
-			input.read(reinterpret_cast<char*>(palette.data()), size);
+			input.read(reinterpret_cast<char*>(data.data()), size);
 
 			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
-			lastCRC = CRC::Calculate(palette.data(), size, crc_table, lastCRC);
+			lastCRC = CRC::Calculate(data.data(), size, crc_table, lastCRC);
 		};
 
 		uint32_t getCRC()
@@ -164,7 +164,7 @@ namespace trv
 		}
 
 		uint32_t lastCRC;
-		std::vector<uint8_t> palette;
+		std::vector<uint8_t> data;
 	};
 
 
@@ -219,7 +219,7 @@ namespace trv
 	{
 		Chunks() {};
 		std::unique_ptr<Chunk<IHDR>> header;
-		std::unique_ptr<Chunk<PLTE>> pallette;
+		std::unique_ptr<Chunk<PLTE>> palette;
 		std::unique_ptr<Chunk<IDAT>> image_data;
 		std::unique_ptr<Chunk<IEND>> end;
 	};
@@ -258,7 +258,7 @@ namespace trv
 					sequence.push_back(ChunkType::IHDR);
 					break;
 				case encode_type("PLTE"):
-					chunks.pallette = std::make_unique<Chunk<PLTE>>(infile, size, type);
+					chunks.palette = std::make_unique<Chunk<PLTE>>(infile, size, type);
 					sequence.push_back(ChunkType::PLTE);
 					break;
 				case encode_type("IDAT"):
@@ -296,7 +296,16 @@ namespace trv
 		IHDR& header = chunks.header->data;
 		std::vector<T> output;
 
-		FilterArgs unfilterArgs = { decompressed, header, output};
+		Chunk<PLTE>* paletteChunk = chunks.palette.get();
+
+		PLTE* palette = nullptr;
+
+		if (paletteChunk)
+		{
+			palette = &paletteChunk->data;
+		}
+
+		FilterArgs unfilterArgs = { decompressed, header, palette, output};
 		unfilter<T>(unfilterArgs);
 
 		size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
@@ -304,8 +313,7 @@ namespace trv
 		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
 		channels = usesPalette ? 3 : channels;
 
-		assert(usesPallette || output.size() == header.width * header.height * channels);
-		assert(!usesPallette || output.size() == header.width * header.height * 1);
+		assert(output.size() == header.width * header.height * channels);
 
 		return Image<T>(output, chunks.header->data.width, chunks.header->data.height, static_cast<uint32_t>(channels));
 	}
