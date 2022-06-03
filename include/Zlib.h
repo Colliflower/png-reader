@@ -90,7 +90,7 @@ namespace trv
 				{
 					uint8_t curr = (val >> (byte * 8)) & 0xFFu;
 					
-					curr = static_cast<uint8_t>(((curr * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32);
+					curr = reverse_bits(curr);
 
 					result |= static_cast<uint64_t>(curr) << (64ull - ((byte + 1ull) * 8ull));
 				}

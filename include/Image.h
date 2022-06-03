@@ -10,9 +10,7 @@
 #include <assert.h>
 #include "Zlib.h"
 #include "Filter.h"
-
-#define CRCPP_USE_CPP11
-#include "ext/CRC.h"
+#include "CRC.h"
 
 #include "Common.h"
 
@@ -20,7 +18,7 @@ namespace trv
 {
 	//Expected first 8 bytes of all PNG files
 	static constexpr uint64_t header_signature = 0x89504e470d0a1a0a;
-	static const auto& crc_table = CRC::CRC_32().MakeTable();
+	static CRCTable<uint32_t> CRC32Table(CRCTable<uint32_t>::CRC_32);
 
 	// Output type
 	template <std::integral T>
@@ -119,12 +117,16 @@ namespace trv
 			filterMethod = extract_from_ifstream<uint8_t>(input);
 			interlaceMethod = extract_from_ifstream<uint8_t>(input);
 
-			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
+			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
 			uint32_t temp = big_endian<uint32_t>(width);
-			lastCRC = CRC::Calculate(reinterpret_cast<char*>(&temp), sizeof(uint32_t), crc_table, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint32_t>(temp, lastCRC);
 			temp = big_endian<uint32_t>(height);
-			lastCRC = CRC::Calculate(reinterpret_cast<char*>(&temp), sizeof(uint32_t), crc_table, lastCRC);
-			lastCRC = CRC::Calculate(&bitDepth, sizeof(char)*5, crc_table, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint32_t>(temp, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint8_t>(bitDepth, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint8_t>(colorType, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint8_t>(compressionMethod, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint8_t>(filterMethod, lastCRC);
+			lastCRC = CRC32Table.Calculate<uint8_t>(interlaceMethod, lastCRC);
 
 		};
 
@@ -154,8 +156,8 @@ namespace trv
 		{
 			input.read(reinterpret_cast<char*>(data.data()), size);
 
-			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
-			lastCRC = CRC::Calculate(data.data(), size, crc_table, lastCRC);
+			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
+			lastCRC = CRC32Table.Calculate<uint8_t>(data.data(), size, lastCRC);
 		};
 
 		uint32_t getCRC()
@@ -179,8 +181,8 @@ namespace trv
 		{
 			input.read(reinterpret_cast<char*>(data.data()), size);
 
-			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
-			lastCRC = CRC::Calculate(data.data(), size, crc_table, lastCRC);
+			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
+			lastCRC = CRC32Table.Calculate<uint8_t>(data.data(), size, lastCRC);
 		};
 
 		void append(std::basic_ifstream<char>& input, uint32_t size)
@@ -188,8 +190,8 @@ namespace trv
 			data.resize(data.size() + size);
 			input.read(reinterpret_cast<char *>(data.data() + data.size() - size), size);
 
-			lastCRC = CRC::Calculate(typeStr, sizeof(typeStr), crc_table);
-			lastCRC = CRC::Calculate(data.data() + data.size() - size, size, crc_table, lastCRC);
+			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
+			lastCRC = CRC32Table.Calculate<uint8_t>(data.data() + data.size() - size, size, lastCRC);
 		}
 
 		uint32_t getCRC()
