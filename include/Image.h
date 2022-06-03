@@ -18,7 +18,7 @@ namespace trv
 {
 	//Expected first 8 bytes of all PNG files
 	static constexpr uint64_t header_signature = 0x89504e470d0a1a0a;
-	static CRCTable<uint32_t> CRC32Table(CRCTable<uint32_t>::CRC_32);
+	static constexpr CRCTable CRC32Table{};
 
 	// Output type
 	template <std::integral T>
@@ -117,16 +117,12 @@ namespace trv
 			filterMethod = extract_from_ifstream<uint8_t>(input);
 			interlaceMethod = extract_from_ifstream<uint8_t>(input);
 
-			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
+			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
 			uint32_t temp = big_endian<uint32_t>(width);
-			lastCRC = CRC32Table.Calculate<uint32_t>(temp, lastCRC);
+			lastCRC = CRC32Table.crc(lastCRC, &temp, sizeof(temp));
 			temp = big_endian<uint32_t>(height);
-			lastCRC = CRC32Table.Calculate<uint32_t>(temp, lastCRC);
-			lastCRC = CRC32Table.Calculate<uint8_t>(bitDepth, lastCRC);
-			lastCRC = CRC32Table.Calculate<uint8_t>(colorType, lastCRC);
-			lastCRC = CRC32Table.Calculate<uint8_t>(compressionMethod, lastCRC);
-			lastCRC = CRC32Table.Calculate<uint8_t>(filterMethod, lastCRC);
-			lastCRC = CRC32Table.Calculate<uint8_t>(interlaceMethod, lastCRC);
+			lastCRC = CRC32Table.crc(lastCRC, &temp, sizeof(temp));
+			lastCRC = CRC32Table.crc(lastCRC, &bitDepth, 5);
 
 		};
 
@@ -156,8 +152,8 @@ namespace trv
 		{
 			input.read(reinterpret_cast<char*>(data.data()), size);
 
-			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
-			lastCRC = CRC32Table.Calculate<uint8_t>(data.data(), size, lastCRC);
+			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
+			lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 		};
 
 		uint32_t getCRC()
@@ -181,8 +177,8 @@ namespace trv
 		{
 			input.read(reinterpret_cast<char*>(data.data()), size);
 
-			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
-			lastCRC = CRC32Table.Calculate<uint8_t>(data.data(), size, lastCRC);
+			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
+			lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 		};
 
 		void append(std::basic_ifstream<char>& input, uint32_t size)
@@ -190,8 +186,8 @@ namespace trv
 			data.resize(data.size() + size);
 			input.read(reinterpret_cast<char *>(data.data() + data.size() - size), size);
 
-			lastCRC = CRC32Table.Calculate<char, 4>(typeStr);
-			lastCRC = CRC32Table.Calculate<uint8_t>(data.data() + data.size() - size, size, lastCRC);
+			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
+			lastCRC = CRC32Table.crc(lastCRC, data.data() + data.size() - size, size);
 		}
 
 		uint32_t getCRC()

@@ -6,119 +6,54 @@
 
 namespace trv
 {
-
-	template <std::unsigned_integral T>
 	struct CRCTable
 	{
-		template <std::unsigned_integral T>
-		struct Model
+	public:
+		constexpr CRCTable() : lookupTable()
 		{
-			T polynomial;
-			T initialValue;
-			bool inputReflected;
-			bool resultReflected;
-			T finalXOR;
-		};
-
-		static constexpr Model<T> CRC_32 = { 0x04C11DB7, 0XFFFFFFFF, true, true, 0xFFFFFFFF };
-
-
-		constexpr CRCTable(const Model<T>& model) : lookupTable(), model(model)
-		{
-			for (T dividend = 0; dividend < 256; ++dividend)
+			for (size_t byte = 0; byte < 256; ++byte)
 			{
-				constexpr int size = sizeof(T) * 8;
-				T curr = dividend << (size - 8); // Shift into MSB
-
+				uint32_t c = static_cast<uint32_t>(byte);
 				for (int bit = 0; bit < 8; ++bit)
 				{
-
-					if (curr & (1 << (size - 1)))
+					if (c & 1)
 					{
-						curr <<= 1;
-						curr ^= model.polynomial;
+						c = 0xedb88320UL ^ (c >> 1);
 					}
 					else
 					{
-						curr <<= 1;
+						c >>= 1;
 					}
 				}
 
-				lookupTable[dividend] = curr;
+				lookupTable.at(byte ) = c;
 			}
-		};
+		}
 
-		template <std::integral U>
-		T Calculate(U value, T previous) const
+		uint32_t crc(const void* buf, int len) const
 		{
-			previous ^= model.finalXOR;
+			return update_crc(0xFFFFFFFFUL, buf, len) ^ 0xFFFFFFFFUL;
+		}
 
-			for (int byte = sizeof(U) - 1; byte >= 0; --byte)
+		uint32_t crc(uint32_t crc, const void* buf, std::size_t len) const {
+			return update_crc(crc ^ 0xFFFFFFFFUL, buf, len) ^ 0xFFFFFFFFUL;
+		}
+
+	private:
+		uint32_t update_crc(uint32_t crc, const void* buf, size_t len) const
+		{
+			uint32_t c = crc;
+			
+			for (size_t i = 0; i < len; ++i)
 			{
-				T current = (value & (((1 << 8) - 1) << byte * 8)) >> (byte * 8);
-
-				if (model.inputReflected)
-				{
-					current = reverse_byte(static_cast<uint8_t>(current));
-				}
-				previous = (previous ^ (current << (sizeof(T) - 1) * 8));
-				uint8_t pos = static_cast<uint8_t>(previous >> ((sizeof(T) - 1) * 8));
-				previous = (previous << 8) ^ lookupTable[pos];
+				uint8_t curr = *(static_cast<const uint8_t*>(buf) + i);
+				c = lookupTable[(c ^ curr) & 0xFF] ^ (c >> 8);
+				uint32_t potential = c & 0xFFFFFFFFUL;
 			}
 
-			previous = (model.resultReflected ? reverse_bits<T>(previous) : previous);
-
-			return previous ^ model.finalXOR;
+			return c;
 		}
 
-		template <std::integral U>
-		T Calculate(U value) const
-		{
-			return Calculate<U>(value, 0);
-		}
-
-		template <std::integral U, size_t N>
-		T Calculate(const U (&values)[N], T previous) const
-		{
-			for (const U& value : values)
-			{
-				previous = Calculate<U>(value, previous);
-			}
-
-			return previous;
-		}
-
-		template <std::integral U, size_t N>
-		T Calculate(const U(&values)[N]) const
-		{
-			T previous = model.initialValue;
-
-			for (const U& value : values)
-			{
-				previous = Calculate<U>(value, previous);
-			}
-
-			return previous;
-		}
-
-		template <std::integral U>
-		T Calculate(const U* values, size_t num, T previous) const
-		{
-			for (size_t i = 0; i < num; ++i)
-			{
-				previous = Calculate<U>(values[i], previous);
-			}
-
-			return previous;
-		}
-
-		template <std::integral U>
-		T Calculate(const U* values, size_t num) const
-		{
-			return Calcualte<U>(values, num, 0);
-		}
-
-		Model<T> model;
-		std::array<T, 256> lookupTable;
+		std::array<uint32_t, 256> lookupTable;
 	};
 }
