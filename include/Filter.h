@@ -1,7 +1,8 @@
 #pragma once
 #include <vector>
+#include <thread>
 #include "Common.h"
-#include "Zlib.h"
+#include "WorkerPool.h"
 
 namespace trv
 {
@@ -12,15 +13,21 @@ namespace trv
 	template <typename T>
 	struct FilterArgs
 	{
-		std::vector<uint8_t>& input;
+		std::vector<unsigned char>& input;
 		IHDR& header;
 		PLTE* palette;
 		std::vector<T>& output;
 	};
 
-	void do_unfilter(std::vector<uint8_t>& input, size_t offset, size_t scanlines, size_t byteWidth, size_t bpp);
+	void do_unfilter(std::vector<unsigned char>& input, size_t offset, size_t scanlines, size_t byteWidth, size_t bpp);
 
-	template<typename T>
+	template <std::integral InputType, std::integral OutputType>
+	inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
+	{
+		return static_cast<OutputType>((val * ((1ul << sizeof(OutputType)) - 1ul)) / ((1ul << sizeof(InputType)) - 1ul));
+	}
+
+	template <std::integral T>
 	void unfilter(FilterArgs<T>& args)
 	{
 		IHDR& header = args.header;
@@ -37,6 +44,7 @@ namespace trv
 
 		BitConsumer<std::endian::big> unfilteredConsumer(args.input);
 
+
 		if (method == InterlaceMethod::None)
 		{
 			args.output.reserve(header.width * header.height * channels);
@@ -46,7 +54,42 @@ namespace trv
 			{
 				byteWidth += 1;
 			}
-			do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
+
+
+			if constexpr (true)
+			{
+				// Multithreading support, tests show no speedup on large files, slowdown on small images
+				assert(header.height != 0);
+				WorkerPool workers(do_unfilter);
+				int64_t scanline = 1;
+				size_t chunkStart = 0;
+
+				for (; scanline < header.height - 1; ++scanline)
+				{
+					FilterMethod currFilter = static_cast<FilterMethod>(args.input[scanline * byteWidth]);
+					FilterMethod prevFilter = static_cast<FilterMethod>(args.input[(scanline - 1) * byteWidth]);
+
+					bool isIndependent = currFilter == FilterMethod::None || currFilter == FilterMethod::Sub;
+					if (isIndependent)
+					{
+						workers.AddTask(args.input, chunkStart * byteWidth, scanline - chunkStart, byteWidth, (bitsPerPixel + 7) / 8);
+						chunkStart = scanline;
+					}
+				}
+
+				// Last task will always escape out
+				workers.AddTask(args.input, chunkStart * byteWidth, header.height - chunkStart, byteWidth, (bitsPerPixel + 7) / 8);
+
+				while (workers.Busy())
+				{
+					std::this_thread::sleep_for(std::chrono::duration<double, std::milli>{20.0});
+				}
+			}
+			else
+			{
+				do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
+			}
+
 
 			for (size_t scanline = 0; scanline < header.height; ++scanline)
 			{
@@ -58,7 +101,7 @@ namespace trv
 						uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
 						if (!usesPalette)
 						{
-							args.output.push_back(static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << header.bitDepth) - 1ul)));
+							args.output.push_back(convertBitDepth<uint8_t, T>(val, header.bitDepth));
 						}
 						else
 						{
@@ -70,7 +113,7 @@ namespace trv
 					else
 					{
 						uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
-						args.output.push_back(static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << 16) - 1ul)));
+						args.output.push_back(convertBitDepth<uint16_t, T>(val, header.bitDepth));
 					}
 				}
 			}
@@ -114,21 +157,21 @@ namespace trv
 								if (header.bitDepth <= 8)
 								{
 									uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
-									args.output[outRow * header.width * channels + outCol + channel] = static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << header.bitDepth) - 1ul));
+									args.output[outRow * header.width * channels + outCol + channel] = convertBitDepth<uint8_t, T>(val, header.bitDepth);
 								}
 								else
 								{
 									uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
-									args.output[outRow * header.width * channels + outCol + channel] = static_cast<uint8_t>((val * ((1ul << 8ul) - 1ul)) / ((1ul << 16) - 1ul));
+									args.output[outRow * header.width * channels + outCol + channel] = convertBitDepth<uint16_t, T>(val, header.bitDepth);
 								}
 							}
 						}
 						else
 						{
 							uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
-							args.output[outRow * header.width * channels + outCol] = args.palette->data[val * 3];
-							args.output[outRow * header.width * channels + outCol + 1] = args.palette->data[val * 3 + 1];
-							args.output[outRow * header.width * channels + outCol + 2] = args.palette->data[val * 3 + 2];
+							args.output[outRow * header.width * channels + outCol] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3], 8);
+							args.output[outRow * header.width * channels + outCol + 1] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 1], 8);
+							args.output[outRow * header.width * channels + outCol + 2] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 2], 8);
 						}
 					}
 				}

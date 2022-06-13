@@ -48,7 +48,6 @@ namespace trv
 			{
 				uint8_t curr = *(static_cast<const uint8_t*>(buf) + i);
 				c = lookupTable[(c ^ curr) & 0xFF] ^ (c >> 8);
-				uint32_t potential = c & 0xFFFFFFFFUL;
 			}
 
 			return c;

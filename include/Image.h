@@ -25,7 +25,7 @@ namespace trv
 	struct Image
 	{
 		Image(std::vector<T> data, uint32_t width, uint32_t height, uint32_t channels) :
-			data(data),
+			data(std::move(data)),
 			width(width),
 			height(height),
 			channels(channels)
@@ -58,7 +58,7 @@ namespace trv
 		requires std::is_constructible_v<T, std::basic_ifstream<char>&, uint32_t>;
 	};
 
-	// Generic container for chunk in PNG with auxilliary data
+	// Generic container for chunk in PNG with auxiliary data
 	template <IsChunk T>
 	struct Chunk
 	{
@@ -162,7 +162,7 @@ namespace trv
 		}
 
 		uint32_t lastCRC;
-		std::vector<uint8_t> data;
+		std::vector<unsigned char> data;
 	};
 
 
@@ -184,7 +184,7 @@ namespace trv
 		void append(std::basic_ifstream<char>& input, uint32_t size)
 		{
 			data.resize(data.size() + size);
-			input.read(reinterpret_cast<char *>(data.data() + data.size() - size), size);
+			input.read(reinterpret_cast<char*>(data.data() + data.size() - size), size);
 
 			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
 			lastCRC = CRC32Table.crc(lastCRC, data.data() + data.size() - size, size);
@@ -196,7 +196,7 @@ namespace trv
 		}
 
 		uint32_t lastCRC;
-		std::vector<uint8_t> data;
+		std::vector<unsigned char> data;
 	};
 
 
@@ -286,12 +286,26 @@ namespace trv
 			}
 		}
 
-		std::vector<uint8_t> decompressed;
+		IHDR& header = chunks.header->data;
+		size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
+			((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
+		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
+		channels = usesPalette ? 3 : channels;
+
+		std::vector<unsigned char> decompressed;
+		size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
+		size_t byteWidth = (header.width * bitsPerPixel + 7) / 8;
+
+		if (byteWidth)
+		{
+			byteWidth += 1;
+		}
+
+		decompressed.reserve(header.height * byteWidth);
 		DeflateArgs decompressArgs { true, chunks.image_data->data.data, decompressed};
 		
 		decompress(decompressArgs);
 
-		IHDR& header = chunks.header->data;
 		std::vector<T> output;
 
 		Chunk<PLTE>* paletteChunk = chunks.palette.get();
@@ -306,10 +320,6 @@ namespace trv
 		FilterArgs unfilterArgs = { decompressed, header, palette, output};
 		unfilter<T>(unfilterArgs);
 
-		size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
-                          ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
-		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
-		channels = usesPalette ? 3 : channels;
 
 		assert(output.size() == header.width * header.height * channels);
 

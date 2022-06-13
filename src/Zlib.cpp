@@ -42,7 +42,7 @@ namespace trv
 			// TODO: Understand what to use this for.
 		}
 
-		std::vector<uint8_t>& output = args.output;
+		std::vector<unsigned char>& output = args.output;
 
 		BitConsumer<std::endian::little> deflateConsumer(zlibConsumer);
 
@@ -213,10 +213,10 @@ namespace trv
 						assert(output.size() > distance);
 						assert(distance < window);
 						size_t offset = output.size() - distance;
-						output.reserve(output.size() + length);
+						//output.reserve(output.size() + length);
 						for (size_t from = offset; from < offset + length; ++from)
 						{
-							output.push_back(output[from]);
+							output.emplace_back(output[from]);
 						}
 					}
 					else // End of block
