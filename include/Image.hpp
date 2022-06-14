@@ -25,12 +25,8 @@ static constexpr CRCTable CRC32Table {};
 template <std::integral T>
 struct Image
 {
-	Image(std::vector<T> data, std::uint32_t width, std::uint32_t height,
-	      std::uint32_t channels) :
-	    data(std::move(data)),
-	    width(width),
-	    height(height),
-	    channels(channels) {};
+	Image(std::vector<T> data, std::uint32_t width, std::uint32_t height, std::uint32_t channels) :
+	    data(std::move(data)), width(width), height(height), channels(channels) {};
 
 	std::vector<T> data;
 	std::uint32_t width, height, channels;
@@ -72,22 +68,17 @@ concept IsChunk = requires(T x)
 template <IsChunk T>
 struct Chunk
 {
-	Chunk(std::basic_ifstream<char>& input, std::uint32_t size,
-	      std::uint32_t type) :
-	    size(size),
-	    type(type),
-	    data(input, size),
-	    crc(extract_from_ifstream<uint32_t>(input))
+	Chunk(std::basic_ifstream<char>& input, std::uint32_t size, std::uint32_t type) :
+	    size(size), type(type), data(input, size), crc(extract_from_ifstream<uint32_t>(input))
 	{
 		std::uint32_t computed_crc = data.getCRC();
 		if (computed_crc != crc)
 		{
 			std::stringstream msg;
 			msg << "Computed CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8)
-			    << std::hex << computed_crc << " doesn't match read CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8)
-			    << std::hex << crc;
+			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+			    << computed_crc << " doesn't match read CRC "
+			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << crc;
 			throw std::runtime_error(msg.str());
 		}
 	};
@@ -102,10 +93,10 @@ struct Chunk
 		{
 			std::stringstream msg;
 			msg << "Computed CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8)
-			    << std::hex << computed_crc << " doesn't match read CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8)
-			    << std::hex << file_crc;
+			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+			    << computed_crc << " doesn't match read CRC "
+			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+			    << file_crc;
 			throw std::runtime_error(msg.str());
 		}
 	}
@@ -177,8 +168,7 @@ struct IDAT
 	constexpr static ChunkType type = ChunkType::IDAT;
 	constexpr static char typeStr[] = { 'I', 'D', 'A', 'T' };
 
-	IDAT(std::basic_ifstream<char>& input, std::uint32_t size) :
-	    data(size), lastCRC()
+	IDAT(std::basic_ifstream<char>& input, std::uint32_t size) : data(size), lastCRC()
 	{
 		input.read(reinterpret_cast<char*>(data.data()), size);
 
@@ -189,8 +179,7 @@ struct IDAT
 	void append(std::basic_ifstream<char>& input, std::uint32_t size)
 	{
 		data.resize(data.size() + size);
-		input.read(reinterpret_cast<char*>(data.data() + data.size() - size),
-		           size);
+		input.read(reinterpret_cast<char*>(data.data() + data.size() - size), size);
 
 		lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
 		lastCRC = CRC32Table.crc(lastCRC, data.data() + data.size() - size, size);
@@ -228,8 +217,7 @@ Image<T> load_image(const std::string& path)
 	std::ifstream infile(path, std::ios_base::binary | std::ios_base::in);
 	if (infile.rdstate() & std::ios_base::failbit)
 	{
-		throw std::runtime_error(
-		    "TRV::IMAGE::LOAD_IMAGE - Unable to open Image.");
+		throw std::runtime_error("TRV::IMAGE::LOAD_IMAGE - Unable to open Image.");
 	}
 	// First thing's first
 
@@ -256,15 +244,13 @@ Image<T> load_image(const std::string& path)
 				sequence.push_back(ChunkType::IHDR);
 				break;
 			case encode_type("PLTE"):
-				chunks.palette =
-				    std::make_unique<Chunk<PLTE>>(infile, size, type);
+				chunks.palette = std::make_unique<Chunk<PLTE>>(infile, size, type);
 				sequence.push_back(ChunkType::PLTE);
 				break;
 			case encode_type("IDAT"):
 				if (chunks.image_data == nullptr)
 				{
-					chunks.image_data =
-					    std::make_unique<Chunk<IDAT>>(infile, size, type);
+					chunks.image_data = std::make_unique<Chunk<IDAT>>(infile, size, type);
 				}
 				else
 				{
@@ -282,21 +268,18 @@ Image<T> load_image(const std::string& path)
 					char cType[5]           = { 0 };
 					memcpy(cType, &temp_type, 4);
 					infile.seekg(size + sizeof(uint32_t), std::ios_base::cur);
-					std::cout
-					    << "TRV::IMAGE::LOAD_IMAGE - Skipping unhandled type "
-					    << cType << "\n";
+					std::cout << "TRV::IMAGE::LOAD_IMAGE - Skipping unhandled type " << cType
+					          << "\n";
 					sequence.push_back(ChunkType::Unknown);
 				}
 		}
 	}
 
-	IHDR& header = chunks.header->data;
-	std::size_t channels =
-	    (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
-	    ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
-	bool usesPalette =
-	    header.colorType & static_cast<uint8_t>(ColorType::Palette);
-	channels = usesPalette ? 3 : channels;
+	IHDR& header         = chunks.header->data;
+	std::size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
+	                       ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
+	bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
+	channels         = usesPalette ? 3 : channels;
 
 	std::vector<unsigned char> decompressed;
 	std::size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
@@ -308,8 +291,7 @@ Image<T> load_image(const std::string& path)
 	}
 
 	decompressed.reserve(header.height * byteWidth);
-	DeflateArgs decompressArgs { true, chunks.image_data->data.data,
-		                         decompressed };
+	DeflateArgs decompressArgs { true, chunks.image_data->data.data, decompressed };
 
 	decompress(decompressArgs);
 

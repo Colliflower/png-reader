@@ -16,8 +16,7 @@ class WorkerPool
 {
    public:
 	typedef void (*Task)(Types...);
-	WorkerPool(Task task,
-	           std::size_t threadCount = std::thread::hardware_concurrency()) :
+	WorkerPool(Task task, std::size_t threadCount = std::thread::hardware_concurrency()) :
 	    _task(task)
 	{
 		for (size_t i = 0; i < threadCount; ++i)
@@ -86,8 +85,7 @@ class WorkerPool
 				return;
 			}
 
-			std::size_t id =
-			    std::hash<std::thread::id> {}(std::this_thread::get_id());
+			std::size_t id = std::hash<std::thread::id> {}(std::this_thread::get_id());
 			std::cout << id << " woke up.\n";
 			std::tuple<Types...> args = std::move(_tasks.front());
 			_tasks.pop();

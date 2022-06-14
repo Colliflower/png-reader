@@ -20,16 +20,15 @@ struct FilterArgs
 	std::vector<T>& output;
 };
 
-void do_unfilter(std::vector<unsigned char>& input, std::size_t offset,
-                 std::size_t scanlines, std::size_t byteWidth, std::size_t bpp);
+void do_unfilter(std::vector<unsigned char>& input, std::size_t offset, std::size_t scanlines,
+                 std::size_t byteWidth, std::size_t bpp);
 
 template <std::integral InputType, std::integral OutputType>
 inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
 {
 	assert(inputBitDepth <= sizeof(OutputType));
-	return static_cast<OutputType>(
-	    (val * ((1ul << sizeof(OutputType) * 8) - 1ul)) /
-	    ((1ul << inputBitDepth) - 1ul));
+	return static_cast<OutputType>((val * ((1ul << sizeof(OutputType) * 8) - 1ul)) /
+	                               ((1ul << inputBitDepth) - 1ul));
 }
 
 template <std::integral T>
@@ -38,14 +37,12 @@ void unfilter(FilterArgs<T>& args)
 	IHDR& header = args.header;
 	InterlaceMethod method { header.interlaceMethod };
 
-	std::size_t channels =
-	    ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +
-	    ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
+	std::size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +
+	                       ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
 
 	assert(channels <= 4);
 
-	bool usesPalette =
-	    header.colorType & static_cast<uint8_t>(ColorType::Palette);
+	bool usesPalette         = header.colorType & static_cast<uint8_t>(ColorType::Palette);
 	std::size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
 	channels                 = usesPalette ? 3 : channels;
 
@@ -73,35 +70,31 @@ void unfilter(FilterArgs<T>& args)
 			{
 				FilterMethod currFilter =
 				    static_cast<FilterMethod>(args.input[scanline * byteWidth]);
-				FilterMethod prevFilter = static_cast<FilterMethod>(
-				    args.input[(scanline - 1) * byteWidth]);
+				FilterMethod prevFilter =
+				    static_cast<FilterMethod>(args.input[(scanline - 1) * byteWidth]);
 
-				bool isIndependent = currFilter == FilterMethod::None ||
-				                     currFilter == FilterMethod::Sub;
+				bool isIndependent =
+				    currFilter == FilterMethod::None || currFilter == FilterMethod::Sub;
 				if (isIndependent)
 				{
-					workers.AddTask(args.input, chunkStart * byteWidth,
-					                scanline - chunkStart, byteWidth,
-					                (bitsPerPixel + 7) / 8);
+					workers.AddTask(args.input, chunkStart * byteWidth, scanline - chunkStart,
+					                byteWidth, (bitsPerPixel + 7) / 8);
 					chunkStart = scanline;
 				}
 			}
 
 			// Last task will always escape out
-			workers.AddTask(args.input, chunkStart * byteWidth,
-			                header.height - chunkStart, byteWidth,
-			                (bitsPerPixel + 7) / 8);
+			workers.AddTask(args.input, chunkStart * byteWidth, header.height - chunkStart,
+			                byteWidth, (bitsPerPixel + 7) / 8);
 
 			while (workers.Busy())
 			{
-				std::this_thread::sleep_for(
-				    std::chrono::duration<double, std::milli> { 20.0 });
+				std::this_thread::sleep_for(std::chrono::duration<double, std::milli> { 20.0 });
 			}
 		}
 		else
 		{
-			do_unfilter(args.input, 0, header.height, byteWidth,
-			            (bitsPerPixel + 7) / 8);
+			do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
 		}
 
 		for (size_t scanline = 0; scanline < header.height; ++scanline)
@@ -113,13 +106,10 @@ void unfilter(FilterArgs<T>& args)
 				if (header.bitDepth <= 8)
 				{
 					std::uint8_t val =
-					    unfilteredConsumer
-					        .consume_bits<uint8_t, std::endian::big>(
-					            header.bitDepth);
+					    unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
 					if (!usesPalette)
 					{
-						args.output.push_back(
-						    convertBitDepth<uint8_t, T>(val, header.bitDepth));
+						args.output.push_back(convertBitDepth<uint8_t, T>(val, header.bitDepth));
 					}
 					else
 					{
@@ -130,12 +120,9 @@ void unfilter(FilterArgs<T>& args)
 				}
 				else
 				{
-					std::uint16_t val =
-					    unfilteredConsumer
-					        .consume_bits<uint16_t, std::endian::big>(
-					            header.bitDepth);
-					args.output.push_back(
-					    convertBitDepth<uint16_t, T>(val, header.bitDepth));
+					std::uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(
+					    header.bitDepth);
+					args.output.push_back(convertBitDepth<uint16_t, T>(val, header.bitDepth));
 				}
 			}
 		}
@@ -154,76 +141,60 @@ void unfilter(FilterArgs<T>& args)
 		for (int pass = 0; pass < 7; ++pass)
 		{
 			std::size_t passWidth =
-			    (header.width + colStride[pass] - 1 - colStart[pass]) /
-			    colStride[pass];
+			    (header.width + colStride[pass] - 1 - colStart[pass]) / colStride[pass];
 			std::size_t passHeight =
-			    (header.height + rowStride[pass] - 1 - rowStart[pass]) /
-			    rowStride[pass];
+			    (header.height + rowStride[pass] - 1 - rowStart[pass]) / rowStride[pass];
 			std::size_t byteWidth = (passWidth * bitsPerPixel + 7) / 8;
 
 			if (!byteWidth) continue;
 
 			byteWidth += 1;
-			do_unfilter(args.input, offset, passHeight, byteWidth,
-			            (bitsPerPixel + 7) / 8);
+			do_unfilter(args.input, offset, passHeight, byteWidth, (bitsPerPixel + 7) / 8);
 
 			for (size_t inRow = 0; inRow < passHeight; ++inRow)
 			{
 				unfilteredConsumer.flush_byte();
 				for (size_t inCol = 0; inCol < passWidth; ++inCol)
 				{
-					std::size_t outRow =
-					    (inRow * rowStride[pass] + rowStart[pass]);
-					std::size_t outCol =
-					    (inCol * colStride[pass] + colStart[pass]) * channels;
+					std::size_t outRow = (inRow * rowStride[pass] + rowStart[pass]);
+					std::size_t outCol = (inCol * colStride[pass] + colStart[pass]) * channels;
 
 					if (!usesPalette)
 					{
 						for (size_t channel = 0; channel < channels; ++channel)
 						{
-							assert(args.output[outRow * header.width * channels +
-							                   outCol + channel] == 0);
+							assert(
+							    args.output[outRow * header.width * channels + outCol + channel] ==
+							    0);
 							if (header.bitDepth <= 8)
 							{
 								std::uint8_t val =
-								    unfilteredConsumer
-								        .consume_bits<uint8_t, std::endian::big>(
-								            header.bitDepth);
-								args.output[outRow * header.width * channels +
-								            outCol + channel] =
-								    convertBitDepth<uint8_t, T>(val,
-								                                header.bitDepth);
+								    unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(
+								        header.bitDepth);
+								args.output[outRow * header.width * channels + outCol + channel] =
+								    convertBitDepth<uint8_t, T>(val, header.bitDepth);
 							}
 							else
 							{
 								std::uint16_t val =
-								    unfilteredConsumer
-								        .consume_bits<uint16_t, std::endian::big>(
-								            header.bitDepth);
-								args.output[outRow * header.width * channels +
-								            outCol + channel] =
-								    convertBitDepth<uint16_t, T>(val,
-								                                 header.bitDepth);
+								    unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(
+								        header.bitDepth);
+								args.output[outRow * header.width * channels + outCol + channel] =
+								    convertBitDepth<uint16_t, T>(val, header.bitDepth);
 							}
 						}
 					}
 					else
 					{
 						std::uint8_t val =
-						    unfilteredConsumer
-						        .consume_bits<uint8_t, std::endian::big>(
-						            header.bitDepth);
+						    unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(
+						        header.bitDepth);
 						args.output[outRow * header.width * channels + outCol] =
-						    convertBitDepth<uint8_t, T>(
-						        args.palette->data[val * 3], 8);
-						args.output[outRow * header.width * channels + outCol +
-						            1] =
-						    convertBitDepth<uint8_t, T>(
-						        args.palette->data[val * 3 + 1], 8);
-						args.output[outRow * header.width * channels + outCol +
-						            2] =
-						    convertBitDepth<uint8_t, T>(
-						        args.palette->data[val * 3 + 2], 8);
+						    convertBitDepth<uint8_t, T>(args.palette->data[val * 3], 8);
+						args.output[outRow * header.width * channels + outCol + 1] =
+						    convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 1], 8);
+						args.output[outRow * header.width * channels + outCol + 2] =
+						    convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 2], 8);
 					}
 				}
 			}
@@ -233,8 +204,7 @@ void unfilter(FilterArgs<T>& args)
 	}
 	else
 	{
-		throw std::runtime_error(
-		    "TRV::FILTER::UNFILTER - Encountered unexpected filter type.");
+		throw std::runtime_error("TRV::FILTER::UNFILTER - Encountered unexpected filter type.");
 	}
 }
 }

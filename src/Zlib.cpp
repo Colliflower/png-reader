@@ -17,8 +17,7 @@ void decompress(DeflateArgs& args)
 
 	if (CINFO > 7)
 	{
-		throw std::runtime_error(
-		    "TRV::ZLIB::DECOMPRESS CINFO cannot be larger than 7");
+		throw std::runtime_error("TRV::ZLIB::DECOMPRESS CINFO cannot be larger than 7");
 	}
 
 	unsigned long window = 1L << (CINFO + 8);
@@ -34,13 +33,11 @@ void decompress(DeflateArgs& args)
 
 	if (FLG & FDICTFilter && args.png)
 	{
-		throw std::runtime_error(
-		    "TRV::ZLIB::DECOMPRESS FDICT cannot be set in PNG files.");
+		throw std::runtime_error("TRV::ZLIB::DECOMPRESS FDICT cannot be set in PNG files.");
 	}
 	else if (FLG & FDICTFilter)
 	{
-		std::uint32_t FDICT =
-		    zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
+		std::uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
 
 		// TODO: Understand what to use this for.
 	}
@@ -53,16 +50,14 @@ void decompress(DeflateArgs& args)
 	while (!is_final)
 	{
 		is_final = deflateConsumer.consume_bits<uint8_t, std::endian::little>(1);
-		enum BTYPES type = static_cast<BTYPES>(
-		    deflateConsumer.consume_bits<uint8_t, std::endian::little>(2));
+		enum BTYPES type =
+		    static_cast<BTYPES>(deflateConsumer.consume_bits<uint8_t, std::endian::little>(2));
 
 		if (type == BTYPES::None)
 		{
 			deflateConsumer.flush_byte();
-			std::uint16_t len =
-			    deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
-			std::uint16_t nlen =
-			    deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
+			std::uint16_t len  = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
+			std::uint16_t nlen = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
 
 			if ((len ^ 0xFFFF) != nlen)
 			{
@@ -73,9 +68,7 @@ void decompress(DeflateArgs& args)
 
 			for (int i = 0; i < len; ++i)
 			{
-				output.push_back(
-				    deflateConsumer.consume_bits<uint8_t, std::endian::little>(
-				        8));
+				output.push_back(deflateConsumer.consume_bits<uint8_t, std::endian::little>(8));
 			}
 		}
 		else if (type == BTYPES::Err)
@@ -90,29 +83,21 @@ void decompress(DeflateArgs& args)
 			if (type == BTYPES::DynamicHuff)
 			{
 				std::uint16_t HLIT =
-				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(
-				        5) +
-				    257;
+				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 257;
 				std::uint16_t HDIST =
-				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(
-				        5) +
-				    1;
+				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
 				std::uint16_t HCLEN =
-				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(
-				        4) +
-				    4;
+				    deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
 
-				std::array<size_t, 19> HCLENSwizzle = { 16, 17, 18, 0,  8, 7,  9,
-					                                    6,  10, 5,  11, 4, 12, 3,
-					                                    13, 2,  14, 1,  15 };
+				std::array<size_t, 19> HCLENSwizzle = { 16, 17, 18, 0, 8,  7, 9,  6, 10, 5,
+					                                    11, 4,  12, 3, 13, 2, 14, 1, 15 };
 
 				std::array<uint16_t, 19> HCLENTable {};
 
 				for (uint32_t i = 0; i < HCLEN; ++i)
 				{
 					HCLENTable[HCLENSwizzle[i]] =
-					    deflateConsumer
-					        .consume_bits<uint16_t, std::endian::little>(3);
+					    deflateConsumer.consume_bits<uint16_t, std::endian::little>(3);
 				}
 
 				Huffman<uint16_t> dictHuffman(8, 19, HCLENTable.data());
@@ -124,8 +109,7 @@ void decompress(DeflateArgs& args)
 				{
 					std::uint16_t repetitions = 1;
 					std::uint16_t repeated    = 0;
-					std::uint16_t encodedLen =
-					    dictHuffman.decode(deflateConsumer);
+					std::uint16_t encodedLen  = dictHuffman.decode(deflateConsumer);
 
 					if (encodedLen <= 15)
 					{
@@ -140,27 +124,20 @@ void decompress(DeflateArgs& args)
 							    "first pass, therefore nothing can be repeated.");
 						}
 						repetitions =
-						    deflateConsumer
-						        .consume_bits<uint16_t, std::endian::little>(2) +
-						    3;
+						    deflateConsumer.consume_bits<uint16_t, std::endian::little>(2) + 3;
 #pragma warning( \
     suppress : 6385)  // 16 cannot appear before <= 15 according to the deflate specificaition ^ I check above in case of corrupt data.
-						repeated = static_cast<uint16_t>(
-						    litLenDistTable[litLenCount - 1]);
+						repeated = static_cast<uint16_t>(litLenDistTable[litLenCount - 1]);
 					}
 					else if (encodedLen == 17)
 					{
 						repetitions =
-						    deflateConsumer
-						        .consume_bits<uint16_t, std::endian::little>(3) +
-						    3;
+						    deflateConsumer.consume_bits<uint16_t, std::endian::little>(3) + 3;
 					}
 					else if (encodedLen == 18)
 					{
 						repetitions =
-						    deflateConsumer
-						        .consume_bits<uint16_t, std::endian::little>(7) +
-						    11;
+						    deflateConsumer.consume_bits<uint16_t, std::endian::little>(7) + 11;
 					}
 					else
 					{
@@ -174,10 +151,10 @@ void decompress(DeflateArgs& args)
 					}
 				}
 
-				LitLenHuffman = std::make_unique<Huffman<uint32_t>>(
-				    16, HLIT, litLenDistTable.data());
-				DistHuffman = std::make_unique<Huffman<uint32_t>>(
-				    16, HDIST, litLenDistTable.data() + HLIT);
+				LitLenHuffman =
+				    std::make_unique<Huffman<uint32_t>>(16, HLIT, litLenDistTable.data());
+				DistHuffman =
+				    std::make_unique<Huffman<uint32_t>>(16, HDIST, litLenDistTable.data() + HLIT);
 			}
 
 			while (true)
@@ -189,38 +166,30 @@ void decompress(DeflateArgs& args)
 				}
 				else
 				{
-					std::uint16_t code =
-					    deflateConsumer.peek_bits<uint16_t, std::endian::big>(9);
+					std::uint16_t code = deflateConsumer.peek_bits<uint16_t, std::endian::big>(9);
 					std::uint16_t bits = 0;
 
-					if (code >= FIXED_LIT_0_143_LOWER &&
-					    code <= FIXED_LIT_0_143_UPPER)
+					if (code >= FIXED_LIT_0_143_LOWER && code <= FIXED_LIT_0_143_UPPER)
 					{
-						litLen = (code >> (9 - FIXED_LIT_0_143_LENGTH)) -
-						         FIXED_LIT_0_143_ROOT + FIXED_LIT_0_143_OFFSET;
+						litLen = (code >> (9 - FIXED_LIT_0_143_LENGTH)) - FIXED_LIT_0_143_ROOT +
+						         FIXED_LIT_0_143_OFFSET;
 						bits = FIXED_LIT_0_143_LENGTH;
 					}
-					else if (code >= FIXED_LIT_144_255_LOWER &&
-					         code <= FIXED_LIT_144_255_UPPER)
+					else if (code >= FIXED_LIT_144_255_LOWER && code <= FIXED_LIT_144_255_UPPER)
 					{
-						litLen = (code >> (9 - FIXED_LIT_144_255_LENGTH)) -
-						         FIXED_LIT_144_255_ROOT +
+						litLen = (code >> (9 - FIXED_LIT_144_255_LENGTH)) - FIXED_LIT_144_255_ROOT +
 						         FIXED_LIT_144_255_OFFSET;
 						bits = FIXED_LIT_144_255_LENGTH;
 					}
-					else if (code >= FIXED_LIT_256_279_LOWER &&
-					         code <= FIXED_LIT_256_279_UPPER)
+					else if (code >= FIXED_LIT_256_279_LOWER && code <= FIXED_LIT_256_279_UPPER)
 					{
-						litLen = (code >> (9 - FIXED_LIT_256_279_LENGTH)) -
-						         FIXED_LIT_256_279_ROOT +
+						litLen = (code >> (9 - FIXED_LIT_256_279_LENGTH)) - FIXED_LIT_256_279_ROOT +
 						         FIXED_LIT_256_279_OFFSET;
 						bits = FIXED_LIT_256_279_LENGTH;
 					}
-					else if (code >= FIXED_LIT_280_287_LOWER &&
-					         code <= FIXED_LIT_280_287_UPPER)
+					else if (code >= FIXED_LIT_280_287_LOWER && code <= FIXED_LIT_280_287_UPPER)
 					{
-						litLen = (code >> (9 - FIXED_LIT_280_287_LENGTH)) -
-						         FIXED_LIT_280_287_ROOT +
+						litLen = (code >> (9 - FIXED_LIT_280_287_LENGTH)) - FIXED_LIT_280_287_ROOT +
 						         FIXED_LIT_280_287_OFFSET;
 						bits = FIXED_LIT_280_287_LENGTH;
 					}
@@ -241,13 +210,11 @@ void decompress(DeflateArgs& args)
 				else if (litLen >= 257)  // Length
 				{
 					assert(litLen <= 285);
-					std::uint8_t lenIndex = static_cast<uint8_t>(litLen - 257);
-					std::uint16_t length  = lengthExtraTable[lenIndex * 2];
-					std::size_t extraLengthBits =
-					    lengthExtraTable[lenIndex * 2 + 1];
-					length += deflateConsumer
-					              .consume_bits<uint16_t, std::endian::little>(
-					                  extraLengthBits);
+					std::uint8_t lenIndex       = static_cast<uint8_t>(litLen - 257);
+					std::uint16_t length        = lengthExtraTable[lenIndex * 2];
+					std::size_t extraLengthBits = lengthExtraTable[lenIndex * 2 + 1];
+					length += deflateConsumer.consume_bits<uint16_t, std::endian::little>(
+					    extraLengthBits);
 
 					std::uint32_t distIndex;
 
@@ -257,18 +224,14 @@ void decompress(DeflateArgs& args)
 					}
 					else
 					{
-						distIndex =
-						    deflateConsumer
-						        .consume_bits<uint32_t, std::endian::big>(5);
+						distIndex = deflateConsumer.consume_bits<uint32_t, std::endian::big>(5);
 					}
 
 					assert(distIndex < 30);
-					std::uint16_t distance = distanceExtraTable[distIndex * 2];
-					std::size_t extraDistanceBits =
-					    distanceExtraTable[distIndex * 2 + 1];
-					distance += deflateConsumer
-					                .consume_bits<uint16_t, std::endian::little>(
-					                    extraDistanceBits);
+					std::uint16_t distance        = distanceExtraTable[distIndex * 2];
+					std::size_t extraDistanceBits = distanceExtraTable[distIndex * 2 + 1];
+					distance += deflateConsumer.consume_bits<uint16_t, std::endian::little>(
+					    extraDistanceBits);
 
 					assert(output.size() > distance);
 					assert(distance < window);

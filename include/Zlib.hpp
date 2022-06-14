@@ -142,10 +142,8 @@ struct Huffman
 		std::uint16_t bitsUsed;
 	};
 
-	Huffman(uint8_t maxCodeLengthInBits, std::uint32_t symbolCount,
-	        T* symbolCodeLength) :
-	    m_maxCodeLengthInBits(maxCodeLengthInBits),
-	    m_entries(1ull << maxCodeLengthInBits)
+	Huffman(uint8_t maxCodeLengthInBits, std::uint32_t symbolCount, T* symbolCodeLength) :
+	    m_maxCodeLengthInBits(maxCodeLengthInBits), m_entries(1ull << maxCodeLengthInBits)
 	{
 		std::vector<T> codeLengthHistogram(maxCodeLengthInBits);
 
@@ -163,8 +161,7 @@ struct Huffman
 
 		for (uint32_t bit = 1; bit < nextCode.size(); ++bit)
 		{
-			nextCode[bit] = (nextCode[bit - 1] + codeLengthHistogram[bit - 1])
-			                << 1;
+			nextCode[bit] = (nextCode[bit - 1] + codeLengthHistogram[bit - 1]) << 1;
 		}
 
 		for (T symbolIndex = 0; symbolIndex < symbolCount; ++symbolIndex)
@@ -179,8 +176,7 @@ struct Huffman
 			assert(code <= ((1u << (codeLengthInBits + 1u)) - 1u));
 
 			std::uint32_t postpendBits = m_maxCodeLengthInBits - codeLengthInBits;
-			for (uint32_t postpend = 0; postpend < (1u << postpendBits);
-			     ++postpend)
+			for (uint32_t postpend = 0; postpend < (1u << postpendBits); ++postpend)
 			{
 				std::uint32_t entryIndex = (code << postpendBits) | postpend;
 				Entry& entry             = m_entries[entryIndex];

@@ -31,8 +31,7 @@ enum class ColorType : std::uint8_t
 
 inline std::uint8_t reverse_byte(uint8_t val)
 {
-	return static_cast<uint8_t>(
-	    ((val * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32);
+	return static_cast<uint8_t>(((val * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32);
 }
 
 template <std::unsigned_integral T>
@@ -139,8 +138,7 @@ class BitConsumer
 		{
 			if constexpr (inputByteType == std::endian::little)
 			{
-				val |= static_cast<uint64_t>(m_input[m_bytesConsumed + byte])
-				       << (byte * 8);
+				val |= static_cast<uint64_t>(m_input[m_bytesConsumed + byte]) << (byte * 8);
 			}
 			else
 			{
@@ -156,12 +154,11 @@ class BitConsumer
 		else
 		{
 			// mask off previously used bits
-			val &= (1ull << static_cast<uint64_t>((bytesRequested + 1ull) * 8ull -
-			                                      m_bitsConsumed)) -
-			       1ull;
+			val &=
+			    (1ull << static_cast<uint64_t>((bytesRequested + 1ull) * 8ull - m_bitsConsumed)) -
+			    1ull;
 			// shift away bits that will be unused
-			val =
-			    val >> (((bytesRequested + 1ull) * 8ull) - bits - m_bitsConsumed);
+			val = val >> (((bytesRequested + 1ull) * 8ull) - bits - m_bitsConsumed);
 		}
 
 		if constexpr (inputByteType != outputBitType)
@@ -172,8 +169,7 @@ class BitConsumer
 
 				curr = reverse_bits(curr);
 
-				result |= static_cast<uint64_t>(curr)
-				          << (64ull - ((byte + 1ull) * 8ull));
+				result |= static_cast<uint64_t>(curr) << (64ull - ((byte + 1ull) * 8ull));
 			}
 
 			result = result >> (64ull - bits);
