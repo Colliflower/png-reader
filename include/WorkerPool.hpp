@@ -16,7 +16,7 @@ namespace trv
 	{
 	public:
 		typedef void(*Task)(Types...);
-		WorkerPool(Task task, size_t threadCount = std::thread::hardware_concurrency()) :
+		WorkerPool(Task task, std::size_t threadCount = std::thread::hardware_concurrency()) :
 			_task(task)
 		{
 			for (size_t i = 0; i < threadCount; ++i)

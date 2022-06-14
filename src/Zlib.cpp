@@ -1,4 +1,4 @@
-#include "Zlib.h"
+#include "Zlib.hpp"
 
 namespace trv
 {
@@ -6,14 +6,14 @@ namespace trv
 	{
 		BitConsumer<std::endian::big> zlibConsumer(args.input);
 
-		uint8_t CMF = zlibConsumer.consume_bits<uint8_t, std::endian::big>(8);
+		std::uint8_t CMF = zlibConsumer.consume_bits<uint8_t, std::endian::big>(8);
 
 		if ((CMF & CMFilter) != CM)
 		{
 			throw std::runtime_error("TRV::ZLIB::DECOMPRESS CM must be 8");
 		}
 
-		uint8_t CINFO = (CMF & CINFOFilter) >> CINFOOffset;
+		std::uint8_t CINFO = (CMF & CINFOFilter) >> CINFOOffset;
 
 		if (CINFO > 7)
 		{
@@ -22,9 +22,9 @@ namespace trv
 
 		unsigned long window = 1L << (CINFO + 8);
 
-		uint8_t FLG = zlibConsumer.consume_bits<uint8_t, std::endian::big>(8);
+		std::uint8_t FLG = zlibConsumer.consume_bits<uint8_t, std::endian::big>(8);
 
-		uint16_t check = ((uint16_t)CMF * 256) + static_cast<uint16_t>(FLG);
+		std::uint16_t check = ((uint16_t)CMF * 256) + static_cast<uint16_t>(FLG);
 
 		if (check % 31 != 0)
 		{
@@ -37,7 +37,7 @@ namespace trv
 		}
 		else if (FLG & FDICTFilter)
 		{
-			uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
+			std::uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
 
 			// TODO: Understand what to use this for.
 		}
@@ -55,8 +55,8 @@ namespace trv
 			if (type == BTYPES::None)
 			{
 				deflateConsumer.flush_byte();
-				uint16_t len = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
-				uint16_t nlen = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
+				std::uint16_t len = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
+				std::uint16_t nlen = deflateConsumer.consume_bits<uint16_t, std::endian::little>(16);
 
 				if ((len ^ 0xFFFF) != nlen)
 				{
@@ -77,9 +77,9 @@ namespace trv
 				std::unique_ptr<Huffman<uint32_t>> LitLenHuffman, DistHuffman;
 				if (type == BTYPES::DynamicHuff)
 				{
-					uint16_t HLIT = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 257;
-					uint16_t HDIST = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
-					uint16_t HCLEN = deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
+					std::uint16_t HLIT = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 257;
+					std::uint16_t HDIST = deflateConsumer.consume_bits<uint16_t, std::endian::little>(5) + 1;
+					std::uint16_t HCLEN = deflateConsumer.consume_bits<uint16_t, std::endian::little>(4) + 4;
 
 					std::array<size_t, 19> HCLENSwizzle =
 					{
@@ -94,15 +94,15 @@ namespace trv
 					}
 
 					Huffman<uint16_t> dictHuffman(8, 19, HCLENTable.data());
-					uint16_t litLenCount = 0;
-					uint16_t lenCount = HLIT + HDIST;
+					std::uint16_t litLenCount = 0;
+					std::uint16_t lenCount = HLIT + HDIST;
 					std::vector<uint32_t> litLenDistTable(lenCount);
 
 					while (litLenCount < lenCount)
 					{
-						uint16_t repetitions = 1;
-						uint16_t repeated = 0;
-						uint16_t encodedLen = dictHuffman.decode(deflateConsumer);
+						std::uint16_t repetitions = 1;
+						std::uint16_t repeated = 0;
+						std::uint16_t encodedLen = dictHuffman.decode(deflateConsumer);
 
 						if (encodedLen <= 15)
 						{
@@ -144,15 +144,15 @@ namespace trv
 
 				while (true)
 				{
-					uint32_t litLen;
+					std::uint32_t litLen;
 					if (type == BTYPES::DynamicHuff)
 					{
 						 litLen = LitLenHuffman->decode(deflateConsumer);
 					}
 					else
 					{
-						uint16_t code = deflateConsumer.peek_bits<uint16_t, std::endian::big>(9);
-						uint16_t bits = 0;
+						std::uint16_t code = deflateConsumer.peek_bits<uint16_t, std::endian::big>(9);
+						std::uint16_t bits = 0;
 
 						if (code >= FIXED_LIT_0_143_LOWER && code <= FIXED_LIT_0_143_UPPER)
 						{
@@ -189,12 +189,12 @@ namespace trv
 					else if (litLen >= 257) // Length
 					{
 						assert(litLen <= 285);
-						uint8_t lenIndex = static_cast<uint8_t>(litLen - 257);
-						uint16_t length = lengthExtraTable[lenIndex * 2];
-						size_t extraLengthBits = lengthExtraTable[lenIndex * 2 + 1];
+						std::uint8_t lenIndex = static_cast<uint8_t>(litLen - 257);
+						std::uint16_t length = lengthExtraTable[lenIndex * 2];
+						std::size_t extraLengthBits = lengthExtraTable[lenIndex * 2 + 1];
 						length += deflateConsumer.consume_bits<uint16_t, std::endian::little>(extraLengthBits);
 
-						uint32_t distIndex;
+						std::uint32_t distIndex;
 
 						if (type == BTYPES::DynamicHuff)
 						{
@@ -206,13 +206,13 @@ namespace trv
 						}
 
 						assert(distIndex < 30);
-						uint16_t distance = distanceExtraTable[distIndex * 2];
-						size_t extraDistanceBits = distanceExtraTable[distIndex * 2 + 1];
+						std::uint16_t distance = distanceExtraTable[distIndex * 2];
+						std::size_t extraDistanceBits = distanceExtraTable[distIndex * 2 + 1];
 						distance += deflateConsumer.consume_bits<uint16_t, std::endian::little>(extraDistanceBits);
 
 						assert(output.size() > distance);
 						assert(distance < window);
-						size_t offset = output.size() - distance;
+						std::size_t offset = output.size() - distance;
 						//output.reserve(output.size() + length);
 						for (size_t from = offset; from < offset + length; ++from)
 						{

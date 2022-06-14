@@ -8,23 +8,22 @@
 #include <type_traits>
 #include <memory>
 #include <assert.h>
-#include "Zlib.h"
-#include "Filter.h"
-#include "CRC.h"
-
-#include "Common.h"
+#include "Zlib.hpp"
+#include "Filter.hpp"
+#include "CRC.hpp"
+#include "Common.hpp"
 
 namespace trv
 {
 	//Expected first 8 bytes of all PNG files
-	static constexpr uint64_t header_signature = 0x89504e470d0a1a0a;
+	static constexpr std::uint64_t header_signature = 0x89504e470d0a1a0a;
 	static constexpr CRCTable CRC32Table{};
 
 	// Output type
 	template <std::integral T>
 	struct Image
 	{
-		Image(std::vector<T> data, uint32_t width, uint32_t height, uint32_t channels) :
+		Image(std::vector<T> data, std::uint32_t width, std::uint32_t height, std::uint32_t channels) :
 			data(std::move(data)),
 			width(width),
 			height(height),
@@ -32,11 +31,11 @@ namespace trv
 		{};
 
 		std::vector<T> data;
-		uint32_t width, height, channels;
+		std::uint32_t width, height, channels;
 	};
 
 	// Compile-time encoding of chunk types
-	constexpr uint32_t encode_type(const char* str)
+	constexpr std::uint32_t encode_type(const char* str)
 	{
 		if constexpr (std::endian::native == std::endian::big)
 		{
@@ -49,26 +48,26 @@ namespace trv
 	}
 
 	// Enum of supported chunk types
-	enum class ChunkType : size_t { IHDR, PLTE, IDAT, IEND, Count, Unknown };
+	enum class ChunkType : std::size_t { IHDR, PLTE, IDAT, IEND, Count, Unknown };
 
 	// Chunk data type, has requirements for generic construction
 	template<typename T>
 	concept IsChunk = requires (T x)
 	{
-		requires std::is_constructible_v<T, std::basic_ifstream<char>&, uint32_t>;
+		requires std::is_constructible_v<T, std::basic_ifstream<char>&, std::uint32_t>;
 	};
 
 	// Generic container for chunk in PNG with auxiliary data
 	template <IsChunk T>
 	struct Chunk
 	{
-		Chunk(std::basic_ifstream<char>& input, uint32_t size, uint32_t type) :
+		Chunk(std::basic_ifstream<char>& input, std::uint32_t size, std::uint32_t type) :
 			size(size), 
 			type(type),
 			data(input, size),
 			crc(extract_from_ifstream<uint32_t>(input))
 		{
-			uint32_t computed_crc = data.getCRC();
+			std::uint32_t computed_crc = data.getCRC();
 			if (computed_crc != crc)
 			{
 				std::stringstream msg;
@@ -78,11 +77,11 @@ namespace trv
 			}
 		};
 
-		void append(std::basic_ifstream<char>& input, uint32_t chunkSize)
+		void append(std::basic_ifstream<char>& input, std::uint32_t chunkSize)
 		{
 			data.append(input, chunkSize);
-			uint32_t file_crc = extract_from_ifstream<uint32_t>(input);
-			uint32_t computed_crc = data.getCRC();
+			std::uint32_t file_crc = extract_from_ifstream<uint32_t>(input);
+			std::uint32_t computed_crc = data.getCRC();
 
 			if (computed_crc != file_crc)
 			{
@@ -93,10 +92,10 @@ namespace trv
 			}
 		}
 
-		uint32_t size;
-		uint32_t type;
+		std::uint32_t size;
+		std::uint32_t type;
 		T data;
-		uint32_t crc;
+		std::uint32_t crc;
 	};
 
 
@@ -107,7 +106,7 @@ namespace trv
 
 		IHDR() = default;
 
-		IHDR(std::basic_ifstream<char>& input, uint32_t)
+		IHDR(std::basic_ifstream<char>& input, std::uint32_t)
 		{
 			width = extract_from_ifstream<uint32_t>(input);
 			height = extract_from_ifstream<uint32_t>(input);
@@ -118,7 +117,7 @@ namespace trv
 			interlaceMethod = extract_from_ifstream<uint8_t>(input);
 
 			lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
-			uint32_t temp = big_endian<uint32_t>(width);
+			std::uint32_t temp = big_endian<uint32_t>(width);
 			lastCRC = CRC32Table.crc(lastCRC, &temp, sizeof(temp));
 			temp = big_endian<uint32_t>(height);
 			lastCRC = CRC32Table.crc(lastCRC, &temp, sizeof(temp));
@@ -126,19 +125,19 @@ namespace trv
 
 		};
 
-		uint32_t getCRC()
+		std::uint32_t getCRC()
 		{
 			return lastCRC;
 		}
 
-		uint32_t lastCRC;
-		uint32_t width;
-		uint32_t height;
-		uint8_t bitDepth;
-		uint8_t colorType;
-		uint8_t compressionMethod;
-		uint8_t filterMethod;
-		uint8_t interlaceMethod;
+		std::uint32_t lastCRC;
+		std::uint32_t width;
+		std::uint32_t height;
+		std::uint8_t bitDepth;
+		std::uint8_t colorType;
+		std::uint8_t compressionMethod;
+		std::uint8_t filterMethod;
+		std::uint8_t interlaceMethod;
 	};
 
 
@@ -147,7 +146,7 @@ namespace trv
 		constexpr static ChunkType type = ChunkType::PLTE;
 		constexpr static char typeStr[] = { 'P','L','T','E' };
 
-		PLTE(std::basic_ifstream<char>& input, uint32_t size) :
+		PLTE(std::basic_ifstream<char>& input, std::uint32_t size) :
 			data(size)
 		{
 			input.read(reinterpret_cast<char*>(data.data()), size);
@@ -156,12 +155,12 @@ namespace trv
 			lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 		};
 
-		uint32_t getCRC()
+		std::uint32_t getCRC()
 		{
 			return lastCRC;
 		}
 
-		uint32_t lastCRC;
+		std::uint32_t lastCRC;
 		std::vector<unsigned char> data;
 	};
 
@@ -171,7 +170,7 @@ namespace trv
 		constexpr static ChunkType type = ChunkType::IDAT;
 		constexpr static char typeStr[] = { 'I','D','A','T' };
 
-		IDAT(std::basic_ifstream<char>& input, uint32_t size) :
+		IDAT(std::basic_ifstream<char>& input, std::uint32_t size) :
 			data(size),
 			lastCRC()
 		{
@@ -181,7 +180,7 @@ namespace trv
 			lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 		};
 
-		void append(std::basic_ifstream<char>& input, uint32_t size)
+		void append(std::basic_ifstream<char>& input, std::uint32_t size)
 		{
 			data.resize(data.size() + size);
 			input.read(reinterpret_cast<char*>(data.data() + data.size() - size), size);
@@ -190,12 +189,12 @@ namespace trv
 			lastCRC = CRC32Table.crc(lastCRC, data.data() + data.size() - size, size);
 		}
 
-		uint32_t getCRC()
+		std::uint32_t getCRC()
 		{
 			return lastCRC;
 		}
 
-		uint32_t lastCRC;
+		std::uint32_t lastCRC;
 		std::vector<unsigned char> data;
 	};
 
@@ -204,9 +203,9 @@ namespace trv
 	{
 		constexpr static ChunkType type = ChunkType::IEND;
 		constexpr static char typeStr[] = { 'I','E','N','D' };
-		IEND(std::basic_ifstream<char>&, uint32_t) {};
+		IEND(std::basic_ifstream<char>&, std::uint32_t) {};
 
-		constexpr uint32_t getCRC() const
+		constexpr std::uint32_t getCRC() const
 		{
 			return 0xAE426082;
 		}
@@ -233,7 +232,7 @@ namespace trv
 		}
 		// First thing's first
 
-		uint64_t file_header = extract_from_ifstream<uint64_t>(infile);
+		std::uint64_t file_header = extract_from_ifstream<uint64_t>(infile);
 
 		if (file_header != header_signature)
 		{
@@ -245,9 +244,9 @@ namespace trv
 
 		while (infile.peek() != EOF)
 		{
-			uint32_t size = extract_from_ifstream<uint32_t>(infile);
+			std::uint32_t size = extract_from_ifstream<uint32_t>(infile);
 
-			uint32_t type = extract_from_ifstream<uint32_t>(infile);
+			std::uint32_t type = extract_from_ifstream<uint32_t>(infile);
 
 			switch (type)
 			{
@@ -276,7 +275,7 @@ namespace trv
 					break;
 				default:
 				{
-					uint32_t temp_type = big_endian<uint32_t>(type);
+					std::uint32_t temp_type = big_endian<uint32_t>(type);
 					char cType[5] = {0};
 					memcpy(cType, &temp_type, 4);
 					infile.seekg(size + sizeof(uint32_t), std::ios_base::cur);
@@ -287,14 +286,14 @@ namespace trv
 		}
 
 		IHDR& header = chunks.header->data;
-		size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
+		std::size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
 			((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
 		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
 		channels = usesPalette ? 3 : channels;
 
 		std::vector<unsigned char> decompressed;
-		size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
-		size_t byteWidth = (header.width * bitsPerPixel + 7) / 8;
+		std::size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
+		std::size_t byteWidth = (header.width * bitsPerPixel + 7) / 8;
 
 		if (byteWidth)
 		{

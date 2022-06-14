@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 #include <thread>
-#include "Common.h"
-#include "WorkerPool.h"
+#include "Common.hpp"
+#include "WorkerPool.hpp"
 
 namespace trv
 {
@@ -19,12 +19,13 @@ namespace trv
 		std::vector<T>& output;
 	};
 
-	void do_unfilter(std::vector<unsigned char>& input, size_t offset, size_t scanlines, size_t byteWidth, size_t bpp);
+	void do_unfilter(std::vector<unsigned char>& input, std::size_t offset, std::size_t scanlines, std::size_t byteWidth, std::size_t bpp);
 
 	template <std::integral InputType, std::integral OutputType>
 	inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
 	{
-		return static_cast<OutputType>((val * ((1ul << sizeof(OutputType)) - 1ul)) / ((1ul << sizeof(InputType)) - 1ul));
+		assert(inputBitDepth <= sizeof(OutputType));
+		return static_cast<OutputType>((val * ((1ul << sizeof(OutputType) * 8) - 1ul)) / ((1ul << inputBitDepth) - 1ul));
 	}
 
 	template <std::integral T>
@@ -33,13 +34,13 @@ namespace trv
 		IHDR& header = args.header;
 		InterlaceMethod method { header.interlaceMethod };
 
-		size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +
+		std::size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +
 			((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
 
 		assert(channels <= 4);
 
 		bool usesPalette = header.colorType & static_cast<uint8_t>(ColorType::Palette);
-		size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
+		std::size_t bitsPerPixel = header.bitDepth * (usesPalette ? 1 : channels);
 		channels = usesPalette ? 3 : channels;
 
 		BitConsumer<std::endian::big> unfilteredConsumer(args.input);
@@ -48,7 +49,7 @@ namespace trv
 		if (method == InterlaceMethod::None)
 		{
 			args.output.reserve(header.width * header.height * channels);
-			size_t byteWidth = (header.width * bitsPerPixel + 7) / 8;
+			std::size_t byteWidth = (header.width * bitsPerPixel + 7) / 8;
 
 			if (byteWidth)
 			{
@@ -61,8 +62,8 @@ namespace trv
 				// Multithreading support, tests show no speedup on large files, slowdown on small images
 				assert(header.height != 0);
 				WorkerPool workers(do_unfilter);
-				int64_t scanline = 1;
-				size_t chunkStart = 0;
+				std::int64_t scanline = 1;
+				std::size_t chunkStart = 0;
 
 				for (; scanline < header.height - 1; ++scanline)
 				{
@@ -98,7 +99,7 @@ namespace trv
 				{
 					if (header.bitDepth <= 8)
 					{
-						uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+						std::uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
 						if (!usesPalette)
 						{
 							args.output.push_back(convertBitDepth<uint8_t, T>(val, header.bitDepth));
@@ -112,7 +113,7 @@ namespace trv
 					}
 					else
 					{
-						uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
+						std::uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
 						args.output.push_back(convertBitDepth<uint16_t, T>(val, header.bitDepth));
 					}
 				}
@@ -120,20 +121,20 @@ namespace trv
 		}
 		else if (method == InterlaceMethod::Adam7)
 		{
-			static constexpr int rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
-			static constexpr int colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
-			static constexpr int rowStride[7]{ 8, 8, 8, 4, 4, 2, 2 };
-			static constexpr int colStride[7]{ 8, 8, 4, 4, 2, 2, 1 };
+			static constexpr std::size_t rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
+			static constexpr std::size_t colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
+			static constexpr std::size_t rowStride[7]{ 8, 8, 8, 4, 4, 2, 2 };
+			static constexpr std::size_t colStride[7]{ 8, 8, 4, 4, 2, 2, 1 };
 
-			size_t offset = 0;
+			std::size_t offset = 0;
 
 			args.output.resize(header.width * header.height * channels);
 
 			for (int pass = 0; pass < 7; ++pass)
 			{
-				size_t passWidth = (header.width  + colStride[pass] - 1 - colStart[pass]) / colStride[pass];
-				size_t passHeight = (header.height + rowStride[pass] - 1 - rowStart[pass]) / rowStride[pass];
-				size_t byteWidth = (passWidth * bitsPerPixel + 7) / 8;
+				std::size_t passWidth = (header.width  + colStride[pass] - 1 - colStart[pass]) / colStride[pass];
+				std::size_t passHeight = (header.height + rowStride[pass] - 1 - rowStart[pass]) / rowStride[pass];
+				std::size_t byteWidth = (passWidth * bitsPerPixel + 7) / 8;
 
 				if (!byteWidth)
 					continue;
@@ -146,8 +147,8 @@ namespace trv
 					unfilteredConsumer.flush_byte();
 					for (size_t inCol = 0; inCol < passWidth; ++inCol)
 					{
-						size_t outRow = (inRow * rowStride[pass] + rowStart[pass]);
-						size_t outCol = (inCol * colStride[pass] + colStart[pass]) * channels;
+						std::size_t outRow = (inRow * rowStride[pass] + rowStart[pass]);
+						std::size_t outCol = (inCol * colStride[pass] + colStart[pass]) * channels;
 
 						if (!usesPalette)
 						{
@@ -156,19 +157,19 @@ namespace trv
 								assert(args.output[outRow * header.width * channels + outCol + channel] == 0);
 								if (header.bitDepth <= 8)
 								{
-									uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+									std::uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
 									args.output[outRow * header.width * channels + outCol + channel] = convertBitDepth<uint8_t, T>(val, header.bitDepth);
 								}
 								else
 								{
-									uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
+									std::uint16_t val = unfilteredConsumer.consume_bits<uint16_t, std::endian::big>(header.bitDepth);
 									args.output[outRow * header.width * channels + outCol + channel] = convertBitDepth<uint16_t, T>(val, header.bitDepth);
 								}
 							}
 						}
 						else
 						{
-							uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
+							std::uint8_t val = unfilteredConsumer.consume_bits<uint8_t, std::endian::big>(header.bitDepth);
 							args.output[outRow * header.width * channels + outCol] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3], 8);
 							args.output[outRow * header.width * channels + outCol + 1] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 1], 8);
 							args.output[outRow * header.width * channels + outCol + 2] = convertBitDepth<uint8_t, T>(args.palette->data[val * 3 + 2], 8);

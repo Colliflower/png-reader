@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
-#include "Common.h"
+#include <cstdint>
+#include "Common.hpp"
 #include <algorithm>
 #include <iterator>
 #include <vector>
@@ -10,16 +10,16 @@
 
 namespace trv
 {
-	static const uint8_t CMFilter = 0x0F;
-	static const uint8_t CM = 0x08;
-	static const uint8_t CINFOFilter = 0xF0;
-	static const uint8_t CINFOOffset = 4;
-	static const uint8_t FDICTFilter = 0x20;
-	static const uint8_t FLEVELFilter = 0xC0;
-	static const uint8_t BFINAL = 0x01;
-	static const uint8_t BTYPE = 0x06;
+	static const std::uint8_t CMFilter = 0x0F;
+	static const std::uint8_t CM = 0x08;
+	static const std::uint8_t CINFOFilter = 0xF0;
+	static const std::uint8_t CINFOOffset = 4;
+	static const std::uint8_t FDICTFilter = 0x20;
+	static const std::uint8_t FLEVELFilter = 0xC0;
+	static const std::uint8_t BFINAL = 0x01;
+	static const std::uint8_t BTYPE = 0x06;
 
-	enum class BTYPES : uint8_t { None = 0x00, FixedHuff = 0x01, DynamicHuff=0x02, Err=0x03 };
+	enum class BTYPES : std::uint8_t { None = 0x00, FixedHuff = 0x01, DynamicHuff=0x02, Err=0x03 };
 
 	struct DeflateArgs
 	{
@@ -97,34 +97,34 @@ namespace trv
 		24577,   13   // 29
 	};
 
-	static constexpr uint16_t FIXED_LIT_0_143_LOWER    = 0b001100000;
-	static constexpr uint16_t FIXED_LIT_0_143_UPPER    = 0b101111111;
-	static constexpr uint16_t FIXED_LIT_0_143_ROOT     = 0b00110000;
-	static constexpr uint16_t FIXED_LIT_0_143_OFFSET   = 0;
-	static constexpr uint16_t FIXED_LIT_0_143_LENGTH   = 8;
+	static constexpr std::uint16_t FIXED_LIT_0_143_LOWER    = 0b001100000;
+	static constexpr std::uint16_t FIXED_LIT_0_143_UPPER    = 0b101111111;
+	static constexpr std::uint16_t FIXED_LIT_0_143_ROOT     = 0b00110000;
+	static constexpr std::uint16_t FIXED_LIT_0_143_OFFSET   = 0;
+	static constexpr std::uint16_t FIXED_LIT_0_143_LENGTH   = 8;
 
-	static constexpr uint16_t FIXED_LIT_144_255_LOWER  = 0b110010000;
-	static constexpr uint16_t FIXED_LIT_144_255_UPPER  = 0b111111111;
-	static constexpr uint16_t FIXED_LIT_144_255_ROOT   = 0b110010000;
-	static constexpr uint16_t FIXED_LIT_144_255_OFFSET = 144;
-	static constexpr uint16_t FIXED_LIT_144_255_LENGTH = 9;
+	static constexpr std::uint16_t FIXED_LIT_144_255_LOWER  = 0b110010000;
+	static constexpr std::uint16_t FIXED_LIT_144_255_UPPER  = 0b111111111;
+	static constexpr std::uint16_t FIXED_LIT_144_255_ROOT   = 0b110010000;
+	static constexpr std::uint16_t FIXED_LIT_144_255_OFFSET = 144;
+	static constexpr std::uint16_t FIXED_LIT_144_255_LENGTH = 9;
 
-	static constexpr uint16_t FIXED_LIT_256_279_LOWER  = 0b000000000;
-	static constexpr uint16_t FIXED_LIT_256_279_UPPER  = 0b001011100;
-	static constexpr uint16_t FIXED_LIT_256_279_ROOT   = 0b0000000;
-	static constexpr uint16_t FIXED_LIT_256_279_OFFSET = 256;
-	static constexpr uint16_t FIXED_LIT_256_279_LENGTH = 7;
+	static constexpr std::uint16_t FIXED_LIT_256_279_LOWER  = 0b000000000;
+	static constexpr std::uint16_t FIXED_LIT_256_279_UPPER  = 0b001011100;
+	static constexpr std::uint16_t FIXED_LIT_256_279_ROOT   = 0b0000000;
+	static constexpr std::uint16_t FIXED_LIT_256_279_OFFSET = 256;
+	static constexpr std::uint16_t FIXED_LIT_256_279_LENGTH = 7;
 
-	static constexpr uint16_t FIXED_LIT_280_287_LOWER  = 0b110000000;
-	static constexpr uint16_t FIXED_LIT_280_287_UPPER  = 0b110001111;
-	static constexpr uint16_t FIXED_LIT_280_287_ROOT   = 0b11000000;
-	static constexpr uint16_t FIXED_LIT_280_287_OFFSET = 280;
-	static constexpr uint16_t FIXED_LIT_280_287_LENGTH = 8;
+	static constexpr std::uint16_t FIXED_LIT_280_287_LOWER  = 0b110000000;
+	static constexpr std::uint16_t FIXED_LIT_280_287_UPPER  = 0b110001111;
+	static constexpr std::uint16_t FIXED_LIT_280_287_ROOT   = 0b11000000;
+	static constexpr std::uint16_t FIXED_LIT_280_287_OFFSET = 280;
+	static constexpr std::uint16_t FIXED_LIT_280_287_LENGTH = 8;
 
 	struct FixedHuffmanBitLengths
 	{
-		uint16_t maxIndex;
-		uint16_t bitLength;
+		std::uint16_t maxIndex;
+		std::uint16_t bitLength;
 	};
 
 	template <std::integral T>
@@ -133,10 +133,10 @@ namespace trv
 		struct Entry
 		{
 			T symbol;
-			uint16_t bitsUsed;
+			std::uint16_t bitsUsed;
 		};
 
-		Huffman(uint8_t maxCodeLengthInBits, uint32_t symbolCount, T* symbolCodeLength) :
+		Huffman(uint8_t maxCodeLengthInBits, std::uint32_t symbolCount, T* symbolCodeLength) :
 			m_maxCodeLengthInBits(maxCodeLengthInBits),
 			m_entries(1ull << maxCodeLengthInBits)
 		{
@@ -169,10 +169,10 @@ namespace trv
 
 				assert(code <= ((1u << (codeLengthInBits + 1u)) - 1u));
 
-				uint32_t postpendBits = m_maxCodeLengthInBits - codeLengthInBits;
+				std::uint32_t postpendBits = m_maxCodeLengthInBits - codeLengthInBits;
 				for (uint32_t postpend = 0; postpend < (1u << postpendBits); ++postpend)
 				{
-					uint32_t entryIndex = (code << postpendBits) | postpend;
+					std::uint32_t entryIndex = (code << postpendBits) | postpend;
 					Entry& entry = m_entries[entryIndex];
 					entry.symbol = symbolIndex;
 
@@ -184,7 +184,7 @@ namespace trv
 
 		T decode(BitConsumer <std::endian::little>& consumer)
 		{	  
-			uint32_t entryIndex = consumer.peek_bits<uint32_t, std::endian::big>(m_maxCodeLengthInBits);
+			std::uint32_t entryIndex = consumer.peek_bits<uint32_t, std::endian::big>(m_maxCodeLengthInBits);
 			Entry& entry = m_entries[entryIndex];
 			
 			if (!entry.bitsUsed)
@@ -198,7 +198,7 @@ namespace trv
 		};
 
 	private:
-		uint32_t m_maxCodeLengthInBits;
+		std::uint32_t m_maxCodeLengthInBits;
 		std::vector<Entry> m_entries;
 	};
 

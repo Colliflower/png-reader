@@ -1,14 +1,14 @@
-#include "Filter.h"
-#include "Image.h"
+#include "Filter.hpp"
+#include "Image.hpp"
 
 namespace trv
 {
-	static uint8_t paethPredictor(uint8_t left, uint8_t top, uint8_t topleft)
+	static std::uint8_t paethPredictor(uint8_t left, std::uint8_t top, std::uint8_t topleft)
 	{
-		int32_t p = static_cast<int32_t>(left + top - topleft);
-		int32_t pleft = p > left ? p - left : left - p;
-		int32_t ptop = p > top ? p - top : top - p;
-		int32_t ptopleft = p > topleft ? p - topleft : topleft - p;
+		std::int32_t p = static_cast<int32_t>(left + top - topleft);
+		std::int32_t pleft = p > left ? p - left : left - p;
+		std::int32_t ptop = p > top ? p - top : top - p;
+		std::int32_t ptopleft = p > topleft ? p - topleft : topleft - p;
 
 		assert(pleft >= 0 && ptop >= 0 && ptopleft >= 0);
 
@@ -27,7 +27,7 @@ namespace trv
 		}
 	};
 
-	void do_unfilter(std::vector<uint8_t>& input, size_t offset, size_t scanlines, size_t byteWidth, size_t bpp)
+	void do_unfilter(std::vector<uint8_t>& input, std::size_t offset, std::size_t scanlines, std::size_t byteWidth, std::size_t bpp)
 	{
 		for (size_t scanline = 0; scanline < scanlines; ++scanline)
 		{
@@ -41,27 +41,27 @@ namespace trv
 
 			for (size_t byte = 1; byte < byteWidth; ++byte)
 			{
-				uint8_t value = 0;
+				std::uint8_t value = 0;
 				switch (static_cast<FilterMethod>(filterType))
 				{
 				case FilterMethod::Sub:
 				{
 					if (byte <= bpp)
 						continue;
-					uint8_t left = input[scanline * byteWidth + byte - bpp + offset];
+					std::uint8_t left = input[scanline * byteWidth + byte - bpp + offset];
 					value = left;
 					break;
 				}
 				case FilterMethod::Up:
 				{
-					uint8_t top = input[(scanline - 1) * byteWidth + byte + offset];
+					std::uint8_t top = input[(scanline - 1) * byteWidth + byte + offset];
 					value = top;
 					break;
 				}
 				case FilterMethod::Average:
 				{
-					uint8_t top = 0;
-					uint8_t left = 0;
+					std::uint8_t top = 0;
+					std::uint8_t left = 0;
 
 					if (scanline != 0)
 						top = input[(scanline - 1) * byteWidth + byte + offset];
@@ -74,9 +74,9 @@ namespace trv
 				}
 				case FilterMethod::Paeth:
 				{
-					uint8_t top = 0;
-					uint8_t left = 0;
-					uint8_t topleft = 0;
+					std::uint8_t top = 0;
+					std::uint8_t left = 0;
+					std::uint8_t topleft = 0;
 
 					if (scanline != 0 && byte > bpp)
 						topleft = input[(scanline - 1) * byteWidth + byte - bpp + offset];

@@ -8,11 +8,11 @@
 
 namespace trv
 {
-	enum class InterlaceMethod : uint8_t { None, Adam7 };
-	enum class FilterMethod : uint8_t { None, Sub, Up, Average, Paeth };
-	enum class ColorType : uint8_t { Palette = 0b001, Color = 0b010, Alpha = 0b100 };
+	enum class InterlaceMethod : std::uint8_t { None, Adam7 };
+	enum class FilterMethod : std::uint8_t { None, Sub, Up, Average, Paeth };
+	enum class ColorType : std::uint8_t { Palette = 0b001, Color = 0b010, Alpha = 0b100 };
 
-	inline uint8_t reverse_byte(uint8_t val)
+	inline std::uint8_t reverse_byte(uint8_t val)
 	{
 		return static_cast<uint8_t>(((val * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32);
 	}
@@ -31,7 +31,7 @@ namespace trv
 	}
 
 	template <>
-	inline uint8_t reverse_bits<uint8_t>(uint8_t val)
+	inline std::uint8_t reverse_bits<uint8_t>(uint8_t val)
 	{
 		return reverse_byte(val);
 	}
@@ -66,7 +66,7 @@ namespace trv
 	}
 
 	template <>
-	inline uint8_t big_endian<uint8_t>(uint8_t val)
+	inline std::uint8_t big_endian<uint8_t>(uint8_t val)
 	{
 		return val;
 	}
@@ -84,7 +84,7 @@ namespace trv
 	}
 
 	template <>
-	inline uint8_t little_endian<uint8_t>(uint8_t val)
+	inline std::uint8_t little_endian<uint8_t>(uint8_t val)
 	{
 		return val;
 	}
@@ -116,10 +116,10 @@ namespace trv
 				return 0;
 			}
 
-			uint64_t result = 0;
-			uint64_t val = 0;
+			std::uint64_t result = 0;
+			std::uint64_t val = 0;
 
-			size_t bytesRequested = ((bits + m_bitsConsumed + 7) / 8) - 1;
+			std::size_t bytesRequested = ((bits + m_bitsConsumed + 7) / 8) - 1;
 
 			for (size_t byte = 0; byte <= bytesRequested; ++byte)
 			{
@@ -149,7 +149,7 @@ namespace trv
 			{
 				for (uint8_t byte = 0; byte < ((bits + 7) / 8); ++byte)
 				{
-					uint8_t curr = (val >> (byte * 8)) & 0xFFu;
+					std::uint8_t curr = (val >> (byte * 8)) & 0xFFu;
 
 					curr = reverse_bits(curr);
 
@@ -187,8 +187,8 @@ namespace trv
 		}
 
 	private:
-		uint8_t m_bitsConsumed = 0;
-		size_t m_bytesConsumed = 0;
+		std::uint8_t m_bitsConsumed = 0;
+		std::size_t m_bytesConsumed = 0;
 		const std::vector<unsigned char>& m_input;
 
 		template <std::endian otherBitType>
