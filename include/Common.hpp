@@ -154,9 +154,7 @@ class BitConsumer
 		else
 		{
 			// mask off previously used bits
-			val &=
-			    (1ull << static_cast<uint64_t>((bytesRequested + 1ull) * 8ull - m_bitsConsumed)) -
-			    1ull;
+			val &= (1ull << static_cast<uint64_t>((bytesRequested + 1) * 8 - m_bitsConsumed)) - 1;
 			// shift away bits that will be unused
 			val = val >> (((bytesRequested + 1ull) * 8ull) - bits - m_bitsConsumed);
 		}
