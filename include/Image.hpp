@@ -14,6 +14,7 @@
 #include "Common.hpp"
 #include "Filter.hpp"
 #include "Zlib.hpp"
+#include "utility/export.hpp"
 
 namespace trv
 {
@@ -212,7 +213,7 @@ struct Chunks
 
 // Read PNG file
 template <std::integral T>
-Image<T> load_image(const std::string& path)
+DLL_PUBLIC Image<T> load_image(const std::string& path)
 {
 	std::ifstream infile(path, std::ios_base::binary | std::ios_base::in);
 	if (infile.rdstate() & std::ios_base::failbit)
