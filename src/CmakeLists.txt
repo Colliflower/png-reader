@@ -20,11 +20,12 @@ install(TARGETS pngreader_static DESTINATION bin)
 
 install(TARGETS pngreader DESTINATION bin)
 
-set(BUILDING_DLL TRUE)
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include DESTINATION include)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include DESTINATION .)
 
-if (MSVC AND ($<$<CONFIG:DEBUG>:TRUE> OR $<$<CONFIG:RELWITHDEBINFO>:TRUE>))
-    install(FILES $<TARGET_PDB_FILE:pngreader> DESTINATION bin)
+
+if (MSVC)
+    # Install pdb files when available
+    install(FILES $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWIthDebInfo>>:$<TARGET_PDB_FILE:pngreader>> DESTINATION bin)
     set_target_properties(pngreader_static PROPERTIES
         COMPILE_PDB_OUTPUT_DIRECTORY_DEBUG ${CMAKE_INSTALL_PREFIX}/bin
         COMPILE_PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_INSTALL_PREFIX}/bin
