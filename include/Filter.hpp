@@ -2,15 +2,12 @@
 #include <thread>
 #include <vector>
 
+#include "Chunk.hpp"
 #include "Common.hpp"
 #include "WorkerPool.hpp"
 
 namespace trv
 {
-
-struct IHDR;
-struct PLTE;
-
 template <typename T>
 struct FilterArgs
 {

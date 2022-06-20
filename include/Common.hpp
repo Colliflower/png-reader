@@ -4,7 +4,9 @@
 
 #include <bit>
 #include <concepts>
+#include <cstring>
 #include <fstream>
+#include <iomanip>
 #include <vector>
 
 namespace trv
@@ -115,9 +117,11 @@ class BitConsumer
 
 	template <std::endian Other>
 	BitConsumer(const BitConsumer<Other>& other) :
-	    m_input(other.m_input),
 	    m_bitsConsumed(other.m_bitsConsumed),
-	    m_bytesConsumed(other.m_bytesConsumed) {};
+	    m_bytesConsumed(other.m_bytesConsumed),
+	    m_input(other.m_input)
+	{
+	}
 
 	template <std::integral T, std::endian outputBitType>
 	T peek_bits(size_t bits)
@@ -178,7 +182,7 @@ class BitConsumer
 		}
 
 		return static_cast<T>(result);
-	};
+	}
 
 	void discard_bits(size_t bits)
 	{
@@ -208,4 +212,5 @@ class BitConsumer
 	template <std::endian otherBitType>
 	friend class BitConsumer;
 };
+
 }

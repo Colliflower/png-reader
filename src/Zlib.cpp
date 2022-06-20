@@ -1,4 +1,5 @@
 #include "Zlib.hpp"
+#include <memory>
 
 namespace trv
 {
@@ -35,12 +36,12 @@ void decompress(DeflateArgs& args)
 	{
 		throw std::runtime_error("TRV::ZLIB::DECOMPRESS FDICT cannot be set in PNG files.");
 	}
-	else if (FLG & FDICTFilter)
-	{
-		std::uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
+	// else if (FLG & FDICTFilter)
+	// {
+	// 	std::uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
 
-		// TODO: Understand what to use this for.
-	}
+	// 	// TODO: Understand what to use this for.
+	// }
 
 	std::vector<unsigned char>& output = args.output;
 
@@ -125,8 +126,11 @@ void decompress(DeflateArgs& args)
 						}
 						repetitions =
 						    deflateConsumer.consume_bits<uint16_t, std::endian::little>(2) + 3;
+
+#ifdef MSVC
 #pragma warning( \
     suppress : 6385)  // 16 cannot appear before <= 15 according to the deflate specificaition ^ I check above in case of corrupt data.
+#endif
 						repeated = static_cast<uint16_t>(litLenDistTable[litLenCount - 1]);
 					}
 					else if (encodedLen == 17)
