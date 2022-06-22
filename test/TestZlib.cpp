@@ -1,30 +1,36 @@
 #include <gtest/gtest.h>
-#include "Zlib.hpp"
+
 #include <random>
+
+#include "Zlib.hpp"
 
 using namespace trv;
 
 TEST(TestZlib, TestDeflateNoCompression)
 {
-	static const std::vector<unsigned char> data {0x08, 0x1d, 0x01, 0x10, 0x00, 0xef, 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x0f, 0x00, 0xf0, 0x00, 0x33, 0x00, 0xcc, 0x00, 0x55, 0x00, 0xaa, 0x1d, 0x22, 0x03, 0xfd};
-	static const std::vector<unsigned char> expected {0x00, 0x00, 0x00, 0xff, 0x00, 0x0f, 0x00, 0xf0, 0x00, 0x33, 0x00, 0xcc, 0x00, 0x55, 0x00, 0xaa}; 
+	static const std::vector<unsigned char> data { 0x08, 0x1d, 0x01, 0x10, 0x00, 0xef, 0xff,
+		                                           0x00, 0x00, 0x00, 0xff, 0x00, 0x0f, 0x00,
+		                                           0xf0, 0x00, 0x33, 0x00, 0xcc, 0x00, 0x55,
+		                                           0x00, 0xaa, 0x1d, 0x22, 0x03, 0xfd };
+	static const std::vector<unsigned char> expected { 0x00, 0x00, 0x00, 0xff, 0x00, 0x0f,
+		                                               0x00, 0xf0, 0x00, 0x33, 0x00, 0xcc,
+		                                               0x00, 0x55, 0x00, 0xaa };
 	std::vector<unsigned char> output;
-	DeflateArgs args{ true, data, output };
+	DeflateArgs args { true, data, output };
 
 	decompress(args);
-
 
 	EXPECT_EQ(output.size(), expected.size());
 
 	for (int i = 0; i < expected.size(); ++i)
 	{
 		EXPECT_EQ(output[i], expected[i]);
-	}	
+	}
 }
 
 TEST(TestZlib, PeekLitteByteLittleBit)
 {
-	static const std::vector<unsigned char> input1{ 0b00100101, 0b01000010 };
+	static const std::vector<unsigned char> input1 { 0b00100101, 0b01000010 };
 
 	BitConsumer<std::endian::little> consumer(input1);
 
@@ -46,7 +52,7 @@ TEST(TestZlib, PeekLitteByteLittleBit)
 
 TEST(TestZlib, PeekLitteByteBigBit)
 {
-	static const std::vector<unsigned char> input1{ 0b00100101, 0b01000010 };
+	static const std::vector<unsigned char> input1 { 0b00100101, 0b01000010 };
 
 	BitConsumer<std::endian::little> consumer(input1);
 
@@ -68,7 +74,7 @@ TEST(TestZlib, PeekLitteByteBigBit)
 
 TEST(TestZlib, PeekBigByteLittleBit)
 {
-	static const std::vector<unsigned char> input1{ 0b10100100, 0b01000010 };
+	static const std::vector<unsigned char> input1 { 0b10100100, 0b01000010 };
 
 	BitConsumer<std::endian::big> consumer(input1);
 
@@ -90,7 +96,7 @@ TEST(TestZlib, PeekBigByteLittleBit)
 
 TEST(TestZlib, PeekBigByteBigBit)
 {
-	static const std::vector<unsigned char> input1{ 0b10100100, 0b01000010 };
+	static const std::vector<unsigned char> input1 { 0b10100100, 0b01000010 };
 
 	BitConsumer<std::endian::big> consumer(input1);
 
@@ -112,7 +118,8 @@ TEST(TestZlib, PeekBigByteBigBit)
 
 TEST(TestZlib, ConsumeLitteByteLittleBit)
 {
-	static const std::vector<unsigned char> input1{ 0b00110010, 0b00001110, 0b00001111, 0b00111110 };
+	static const std::vector<unsigned char> input1 { 0b00110010, 0b00001110, 0b00001111,
+		                                             0b00111110 };
 
 	BitConsumer<std::endian::little> consumer(input1);
 
@@ -134,7 +141,8 @@ TEST(TestZlib, ConsumeLitteByteLittleBit)
 
 TEST(TestZlib, ConsumeLitteByteBigBit)
 {
-	static const std::vector<unsigned char> input1{ 0b00110010, 0b00001110, 0b00001111, 0b00111110 };
+	static const std::vector<unsigned char> input1 { 0b00110010, 0b00001110, 0b00001111,
+		                                             0b00111110 };
 
 	BitConsumer<std::endian::little> consumer(input1);
 
@@ -156,7 +164,8 @@ TEST(TestZlib, ConsumeLitteByteBigBit)
 
 TEST(TestZlib, ConsumeBigByteLittleBit)
 {
-	static const std::vector<unsigned char> input1{ 0b01001100, 0b01110000, 0b11110000, 0b01111100 };
+	static const std::vector<unsigned char> input1 { 0b01001100, 0b01110000, 0b11110000,
+		                                             0b01111100 };
 
 	BitConsumer<std::endian::big> consumer(input1);
 
@@ -178,7 +187,8 @@ TEST(TestZlib, ConsumeBigByteLittleBit)
 
 TEST(TestZlib, ConsumeBigByteBigBit)
 {
-	static const std::vector<unsigned char> input1{ 0b01001100, 0b01110000, 0b11110000, 0b01111100 };
+	static const std::vector<unsigned char> input1 { 0b01001100, 0b01110000, 0b11110000,
+		                                             0b01111100 };
 
 	BitConsumer<std::endian::big> consumer(input1);
 

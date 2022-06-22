@@ -31,9 +31,16 @@ enum class BTYPES : std::uint8_t
 
 struct DeflateArgs
 {
+	typedef std::vector<unsigned char> Bytes;
 	bool png;
-	const std::vector<unsigned char>& input;
-	std::vector<unsigned char>& output;
+	const Bytes& input;
+	Bytes& output;
+
+	DeflateArgs(bool png, const Bytes& input, Bytes& output) :
+	    png(png), input(input), output(output) {};
+	DeflateArgs(bool png, const Bytes&& input, Bytes& output)  = delete;
+	DeflateArgs(bool png, const Bytes& input, Bytes&& output)  = delete;
+	DeflateArgs(bool png, const Bytes&& input, Bytes&& output) = delete;
 };
 
 static constexpr std::array<uint16_t, 29 * 2> lengthExtraTable = {

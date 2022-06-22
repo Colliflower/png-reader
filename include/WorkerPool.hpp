@@ -37,10 +37,10 @@ class WorkerPool
 		}
 	}
 
-	WorkerPool()                  = delete;
-	WorkerPool(WorkerPool& other) = delete;
-	WorkerPool(WorkerPool&&)      = delete;
-	WorkerPool& operator=(WorkerPool&) = delete;
+	WorkerPool()                        = delete;
+	WorkerPool(WorkerPool& other)       = delete;
+	WorkerPool(WorkerPool&&)            = delete;
+	WorkerPool& operator=(WorkerPool&)  = delete;
 	WorkerPool& operator=(WorkerPool&&) = delete;
 
 	void AddTask(Types... args)

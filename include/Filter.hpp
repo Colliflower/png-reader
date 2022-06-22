@@ -11,10 +11,18 @@ namespace trv
 template <typename T>
 struct FilterArgs
 {
-	std::vector<unsigned char>& input;
-	IHDR& header;
+	typedef std::vector<unsigned char> Bytes;
+	typedef std::vector<T> Outputs;
+	Bytes& input;
+	IHDR* header;
 	PLTE* palette;
-	std::vector<T>& output;
+	Outputs& output;
+
+	FilterArgs(Bytes& input, IHDR* header, PLTE* palette, Outputs& output) :
+	    input(input), header(header), palette(palette), output(output) {};
+	FilterArgs(Bytes&&, IHDR*, PLTE*, Outputs&)  = delete;
+	FilterArgs(Bytes&, IHDR*, PLTE*, Outputs&&)  = delete;
+	FilterArgs(Bytes&&, IHDR*, PLTE*, Outputs&&) = delete;
 };
 
 void do_unfilter(std::vector<unsigned char>& input, std::size_t offset, std::size_t scanlines,
@@ -31,7 +39,7 @@ template <std::integral InputType, std::integral OutputType>
 template <std::integral T>
 void unfilter(FilterArgs<T>& args)
 {
-	IHDR& header = args.header;
+	IHDR& header = *args.header;
 	InterlaceMethod method { header.interlaceMethod };
 
 	std::size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +

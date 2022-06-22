@@ -116,6 +116,7 @@ class BitConsumer
 {
    public:
 	BitConsumer(const std::vector<unsigned char>& input) : m_input(input) {};
+	BitConsumer(std::vector<unsigned char>&&) = delete;
 
 	template <std::endian Other>
 	BitConsumer(const BitConsumer<Other>& other) :

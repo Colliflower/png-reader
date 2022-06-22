@@ -39,7 +39,8 @@ void decompress(DeflateArgs& args)
 	}
 	else if (FLG & FDICTFilter)
 	{
-		[[maybe_unused]] std::uint32_t FDICT = zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
+		[[maybe_unused]] std::uint32_t FDICT =
+		    zlibConsumer.consume_bits<uint32_t, std::endian::big>(32);
 
 		// TODO: Understand what to use this for.
 	}
@@ -156,10 +157,10 @@ void decompress(DeflateArgs& args)
 					}
 				}
 
-				LitLenHuffman =
-				    std::make_unique<Huffman<uint32_t>>(static_cast<std::uint8_t>(16), HLIT, litLenDistTable.data());
-				DistHuffman =
-				    std::make_unique<Huffman<uint32_t>>(static_cast<std::uint8_t>(16), HDIST, litLenDistTable.data() + HLIT);
+				LitLenHuffman = std::make_unique<Huffman<uint32_t>>(
+				    static_cast<std::uint8_t>(16), HLIT, litLenDistTable.data());
+				DistHuffman = std::make_unique<Huffman<uint32_t>>(
+				    static_cast<std::uint8_t>(16), HDIST, litLenDistTable.data() + HLIT);
 			}
 
 			while (true)
