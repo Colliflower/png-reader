@@ -21,7 +21,7 @@ if (${PACKAGE_TESTS})
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
-    set(test_files TestZlib.cpp)
+    set(test_files TestZlib.cpp TestImage.cpp) 
 
     enable_testing()
 
@@ -31,6 +31,7 @@ if (${PACKAGE_TESTS})
     target_link_libraries(pngreader_test pngreader_static)
 
     install(TARGETS pngreader_test DESTINATION test)
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/test/samples DESTINATION test/)
 
     if (MSVC)
         # Install pdb files when available

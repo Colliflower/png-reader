@@ -141,7 +141,7 @@ template <std::integral T>
 		palette = &paletteChunk->data;
 	}
 
-	FilterArgs unfilterArgs = { decompressed, header, palette, output };
+	FilterArgs unfilterArgs { decompressed, &header, palette, output };
 	unfilter<T>(unfilterArgs);
 
 	assert(output.size() == header.width * header.height * channels);
