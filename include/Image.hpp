@@ -33,7 +33,7 @@ struct Image
 };
 
 // Compile-time encoding of chunk types
-constexpr std::uint32_t encode_type(const char* str)
+[[nodiscard]] constexpr std::uint32_t encode_type(const char* str)
 {
 	if constexpr (std::endian::native == std::endian::big)
 	{
@@ -47,7 +47,7 @@ constexpr std::uint32_t encode_type(const char* str)
 
 // Read PNG file
 template <std::integral T>
-DLL_PUBLIC Image<T> load_image(const std::string& path)
+[[nodiscard]] DLL_PUBLIC Image<T> load_image(const std::string& path)
 {
 	std::ifstream infile(path, std::ios_base::binary | std::ios_base::in);
 	if (infile.rdstate() & std::ios_base::failbit)

@@ -16,6 +16,7 @@ enum class InterlaceMethod : std::uint8_t
 	None,
 	Adam7
 };
+
 enum class FilterMethod : std::uint8_t
 {
 	None,
@@ -24,6 +25,7 @@ enum class FilterMethod : std::uint8_t
 	Average,
 	Paeth
 };
+
 enum class ColorType : std::uint8_t
 {
 	Palette = 0b001,
@@ -31,13 +33,13 @@ enum class ColorType : std::uint8_t
 	Alpha   = 0b100
 };
 
-inline std::uint8_t reverse_byte(uint8_t val)
+[[nodiscard]] inline std::uint8_t reverse_byte(uint8_t val)
 {
 	return static_cast<uint8_t>(((val * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32);
 }
 
 template <std::unsigned_integral T>
-inline T reverse_bits(T val)
+[[nodiscard]] inline T reverse_bits(T val)
 {
 	T result = 0;
 
@@ -51,14 +53,14 @@ inline T reverse_bits(T val)
 }
 
 template <>
-inline std::uint8_t reverse_bits<uint8_t>(uint8_t val)
+[[nodiscard]] inline std::uint8_t reverse_bits<uint8_t>(uint8_t val)
 {
 	return reverse_byte(val);
 }
 
 // Allows reading of integral types from big-endian binary stream
 template <std::integral T>
-T extract_from_ifstream(std::basic_ifstream<char>& input)
+[[nodiscard]] T extract_from_ifstream(std::basic_ifstream<char>& input)
 {
 	char bytes[sizeof(T)];
 	input.read(bytes, sizeof(T));
@@ -75,7 +77,7 @@ T extract_from_ifstream(std::basic_ifstream<char>& input)
 
 // Swap bytes in memory if system is little endian.
 template <std::integral T>
-T big_endian(T val)
+[[nodiscard]] T big_endian(T val)
 {
 	if constexpr (std::endian::native == std::endian::little)
 	{
@@ -86,14 +88,14 @@ T big_endian(T val)
 }
 
 template <>
-inline std::uint8_t big_endian<uint8_t>(uint8_t val)
+[[nodiscard]] inline std::uint8_t big_endian<uint8_t>(uint8_t val)
 {
 	return val;
 }
 
 // Swap bytes in memory if system is big endian.
 template <std::integral T>
-T little_endian(T val)
+[[nodiscard]] T little_endian(T val)
 {
 	if constexpr (std::endian::native == std::endian::big)
 	{
@@ -104,7 +106,7 @@ T little_endian(T val)
 }
 
 template <>
-inline std::uint8_t little_endian<uint8_t>(uint8_t val)
+[[nodiscard]] inline std::uint8_t little_endian<uint8_t>(uint8_t val)
 {
 	return val;
 }
@@ -124,7 +126,7 @@ class BitConsumer
 	}
 
 	template <std::integral T, std::endian outputBitType>
-	T peek_bits(size_t bits)
+	[[nodiscard]] T peek_bits(size_t bits)
 	{
 		assert(m_bitsConsumed < 8);
 
@@ -197,7 +199,7 @@ class BitConsumer
 	}
 
 	template <typename T, std::endian outputBitType>
-	T consume_bits(size_t bits)
+	[[nodiscard]] T consume_bits(size_t bits)
 	{
 		T result = peek_bits<T, outputBitType>(bits);
 		discard_bits(bits);

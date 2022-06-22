@@ -188,7 +188,7 @@ struct Huffman
 		}
 	};
 
-	T decode(BitConsumer<std::endian::little>& consumer)
+	[[nodiscard]] T decode(BitConsumer<std::endian::little>& consumer)
 	{
 		std::uint32_t entryIndex =
 		    consumer.peek_bits<uint32_t, std::endian::big>(m_maxCodeLengthInBits);

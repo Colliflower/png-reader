@@ -31,18 +31,18 @@ struct CRCTable
 		}
 	}
 
-	std::uint32_t crc(const void* buf, std::size_t len) const
+	[[nodiscard]] std::uint32_t crc(const void* buf, std::size_t len) const
 	{
 		return update_crc(0xFFFFFFFFUL, buf, len) ^ 0xFFFFFFFFUL;
 	}
 
-	std::uint32_t crc(uint32_t crc, const void* buf, std::size_t len) const
+	[[nodiscard]] std::uint32_t crc(uint32_t crc, const void* buf, std::size_t len) const
 	{
 		return update_crc(crc ^ 0xFFFFFFFFUL, buf, len) ^ 0xFFFFFFFFUL;
 	}
 
    private:
-	std::uint32_t update_crc(uint32_t crc, const void* buf, std::size_t len) const
+	[[nodiscard]] std::uint32_t update_crc(uint32_t crc, const void* buf, std::size_t len) const
 	{
 		std::uint32_t c = crc;
 

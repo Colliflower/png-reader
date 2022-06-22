@@ -77,8 +77,6 @@ struct IHDR
 	constexpr static ChunkType type = ChunkType::IHDR;
 	constexpr static char typeStr[] = { 'I', 'H', 'D', 'R' };
 
-	IHDR() = default;
-
 	IHDR(std::basic_ifstream<char>& input, std::uint32_t)
 	{
 		width             = extract_from_ifstream<uint32_t>(input);
@@ -97,7 +95,7 @@ struct IHDR
 		lastCRC            = CRC32Table.crc(lastCRC, &bitDepth, 5);
 	};
 
-	std::uint32_t getCRC() { return lastCRC; }
+	[[nodiscard]] std::uint32_t getCRC() { return lastCRC; }
 
 	std::uint32_t lastCRC;
 	std::uint32_t width;
@@ -122,7 +120,7 @@ struct PLTE
 		lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 	};
 
-	std::uint32_t getCRC() { return lastCRC; }
+	[[nodiscard]] std::uint32_t getCRC() { return lastCRC; }
 
 	std::uint32_t lastCRC;
 	std::vector<unsigned char> data;
@@ -150,7 +148,7 @@ struct IDAT
 		lastCRC = CRC32Table.crc(lastCRC, data.data() + data.size() - size, size);
 	}
 
-	std::uint32_t getCRC() { return lastCRC; }
+	[[nodiscard]] std::uint32_t getCRC() { return lastCRC; }
 
 	std::uint32_t lastCRC;
 	std::vector<unsigned char> data;
@@ -162,7 +160,7 @@ struct IEND
 	constexpr static char typeStr[] = { 'I', 'E', 'N', 'D' };
 	IEND(std::basic_ifstream<char>&, std::uint32_t) {};
 
-	constexpr std::uint32_t getCRC() const { return 0xAE426082; }
+	[[nodiscard]] constexpr std::uint32_t getCRC() const { return 0xAE426082; }
 };
 
 // Container for supported chunk types

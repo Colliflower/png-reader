@@ -4,7 +4,9 @@
 
 namespace trv
 {
-static std::uint8_t paethPredictor(uint8_t left, std::uint8_t top, std::uint8_t topleft)
+[[nodiscard]] static std::uint8_t paethPredictor(uint8_t left,
+                                                 std::uint8_t top,
+                                                 std::uint8_t topleft)
 {
 	std::int32_t p        = static_cast<int32_t>(left + top - topleft);
 	std::int32_t pleft    = p > left ? p - left : left - p;

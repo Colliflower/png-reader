@@ -21,7 +21,7 @@ void do_unfilter(std::vector<unsigned char>& input, std::size_t offset, std::siz
                  std::size_t byteWidth, std::size_t bpp);
 
 template <std::integral InputType, std::integral OutputType>
-inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
+[[nodiscard]] inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
 {
 	assert(inputBitDepth <= sizeof(OutputType));
 	return static_cast<OutputType>((val * ((1ul << sizeof(OutputType) * 8) - 1ul)) /
