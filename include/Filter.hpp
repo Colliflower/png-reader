@@ -14,8 +14,8 @@ struct FilterArgs
 	typedef std::vector<unsigned char> Bytes;
 	typedef std::vector<T> Outputs;
 	Bytes& input;
-	IHDR* header;
-	PLTE* palette;
+	const IHDR* const header;
+	const PLTE* const palette;
 	Outputs& output;
 
 	FilterArgs(Bytes& input, IHDR* header, PLTE* palette, Outputs& output) :
@@ -39,7 +39,7 @@ template <std::integral InputType, std::integral OutputType>
 template <std::integral T>
 void unfilter(FilterArgs<T>& args)
 {
-	IHDR& header = *args.header;
+	const IHDR& header = *args.header;
 	InterlaceMethod method { header.interlaceMethod };
 
 	std::size_t channels = ((header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1) +
