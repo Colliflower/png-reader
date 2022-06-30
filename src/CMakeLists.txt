@@ -1,6 +1,7 @@
 set(src_files
     ${CMAKE_CURRENT_SOURCE_DIR}/Filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Zlib.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Chunk.cpp
 )
 
 if(MSVC)

@@ -110,6 +110,8 @@ template <std::integral T>
 		}
 	}
 
+	verifyOrdering(chunks.header.get(), sequence);
+
 	IHDR& header         = chunks.header->data;
 	std::size_t channels = (header.colorType & static_cast<uint8_t>(ColorType::Color)) + 1 +
 	                       ((header.colorType & static_cast<uint8_t>(ColorType::Alpha)) >> 2);
