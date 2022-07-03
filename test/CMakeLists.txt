@@ -13,9 +13,10 @@ if (${PACKAGE_TESTS})
     set(INSTALL_GTEST OFF CACHE BOOL "Install GTest for the unit tests")
     message("TREVOR PNG ${INSTALL_GTEST}")
     include(FetchContent)
-        FetchContent_Declare(
+    FetchContent_Declare(
         googletest
         URL https://github.com/google/googletest/archive/e2239ee6043f73722e7aa812a459f54a28552929.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)

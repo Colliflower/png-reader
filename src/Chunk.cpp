@@ -8,7 +8,7 @@ void verifyOrdering(const Chunk<IHDR>* header, const std::vector<ChunkType>& seq
 {
 	std::array<std::size_t, static_cast<std::size_t>(ChunkType::Count)> previousPosition {};
 
-	for (int i = 0; i < sequence.size(); ++i)
+	for (std::size_t i = 0; i < sequence.size(); ++i)
 	{
 		const auto& curr = sequence[i];
 
