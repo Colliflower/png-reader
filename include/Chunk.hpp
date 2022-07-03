@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <type_traits>
 
 #include "CRC.hpp"
@@ -40,10 +41,9 @@ struct Chunk
 		if (computed_crc != crc)
 		{
 			std::stringstream msg;
-			msg << "Computed CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
-			    << computed_crc << " doesn't match read CRC "
-			    << "0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << crc;
+			msg << "Computed CRC 0x" << std::uppercase << std::setfill('0') << std::setw(8)
+			    << std::hex << computed_crc << " doesn't match read CRC 0x" << std::uppercase
+			    << std::setfill('0') << std::setw(8) << std::hex << crc;
 			throw std::runtime_error(msg.str());
 		}
 	};
@@ -74,6 +74,7 @@ struct Chunk
 
 struct IHDR
 {
+   public:
 	constexpr static ChunkType type = ChunkType::IHDR;
 	constexpr static char typeStr[] = { 'I', 'H', 'D', 'R' };
 
@@ -87,6 +88,8 @@ struct IHDR
 		filterMethod      = extract_from_ifstream<uint8_t>(input);
 		interlaceMethod   = extract_from_ifstream<uint8_t>(input);
 
+		verify();
+
 		lastCRC            = CRC32Table.crc(typeStr, sizeof(typeStr));
 		std::uint32_t temp = big_endian<uint32_t>(width);
 		lastCRC            = CRC32Table.crc(lastCRC, &temp, sizeof(temp));
@@ -97,6 +100,78 @@ struct IHDR
 
 	[[nodiscard]] std::uint32_t getCRC() { return lastCRC; }
 
+   private:
+	void verify()
+	{
+		if (width == 0 || height == 0)
+		{
+			throw std::runtime_error("TRV::CHUNK::IHDR Invalid width or height of zero detected.");
+		}
+
+		switch (bitDepth)
+		{
+			case 1:
+			case 2:
+			case 4:
+			case 8:
+			case 16:
+				break;
+			default:
+				throw std::runtime_error("TRV::CHUNK::IHDR Invalid bit depth detected.");
+		}
+
+		switch (colorType)
+		{
+			case 0:
+			case 2:
+				if (bitDepth < 8)
+				{
+					throw std::runtime_error(
+					    "TRV::CHUNK::IHDR Invalid bit depth detected for color type 2.");
+				}
+				break;
+			case 3:
+				if (bitDepth > 8)
+				{
+					throw std::runtime_error(
+					    "TRV::CHUNK::IHDR Invalid bit depth detected for color type 3.");
+				}
+				break;
+			case 4:
+				if (bitDepth < 8)
+				{
+					throw std::runtime_error(
+					    "TRV::CHUNK::IHDR Invalid bit depth detected for color type 4.");
+				}
+				break;
+			case 6:
+				if (bitDepth < 8)
+				{
+					throw std::runtime_error(
+					    "TRV::CHUNK::IHDR Invalid bit depth detected for color Type 6.");
+				}
+				break;
+			default:
+				throw std::runtime_error("TRV::CHUNK::IHDR Invalid color type detected.");
+		}
+
+		if (compressionMethod != 0)
+		{
+			throw std::runtime_error("TRV::CHUNK::IHDR Invalid compression method detected.");
+		}
+
+		if (filterMethod != 0)
+		{
+			throw std::runtime_error("TRV::CHUNK::IHDR Invalid filter method detected.");
+		}
+
+		if (interlaceMethod > 1)
+		{
+			throw std::runtime_error("TRV::CHUNK::IHDR Invalid interlace method detected.");
+		}
+	}
+
+   public:
 	std::uint32_t lastCRC;
 	std::uint32_t width;
 	std::uint32_t height;
@@ -109,6 +184,7 @@ struct IHDR
 
 struct PLTE
 {
+   public:
 	constexpr static ChunkType type = ChunkType::PLTE;
 	constexpr static char typeStr[] = { 'P', 'L', 'T', 'E' };
 
@@ -116,12 +192,24 @@ struct PLTE
 	{
 		input.read(reinterpret_cast<char*>(data.data()), size);
 
+		verify();
+
 		lastCRC = CRC32Table.crc(typeStr, sizeof(typeStr));
 		lastCRC = CRC32Table.crc(lastCRC, data.data(), size);
 	};
 
 	[[nodiscard]] std::uint32_t getCRC() { return lastCRC; }
 
+   private:
+	void verify()
+	{
+		if (data.size() % 3 != 0)
+		{
+			throw std::runtime_error("TRV::CHUNK::PLTE Palette entries must be a multiple of 3.");
+		}
+	}
+
+   public:
 	std::uint32_t lastCRC;
 	std::vector<unsigned char> data;
 };
@@ -172,4 +260,6 @@ struct Chunks
 	std::unique_ptr<Chunk<IDAT>> image_data;
 	std::unique_ptr<Chunk<IEND>> end;
 };
-}
+
+void verifyOrdering(const Chunk<IHDR>* header, const std::vector<ChunkType>& sequence);
+}  // namespace trv
