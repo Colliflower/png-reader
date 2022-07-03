@@ -32,7 +32,7 @@ template <std::integral InputType, std::integral OutputType>
 [[nodiscard]] inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
 {
 	assert(inputBitDepth <= sizeof(OutputType));
-	return static_cast<OutputType>((val * ((1ul << sizeof(OutputType) * 8) - 1ul)) /
+	return static_cast<OutputType>((val * std::numeric_limits<OutputType>::max()) /
 	                               ((1ul << inputBitDepth) - 1ul));
 }
 
