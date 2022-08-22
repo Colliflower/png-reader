@@ -19,7 +19,7 @@
 namespace trv
 {
 //Expected first 8 bytes of all PNG files
-static constexpr std::uint64_t header_signature = 0x89504e470d0a1a0a;
+inline constexpr std::uint64_t header_signature = 0x89504e470d0a1a0a;
 
 // Output type
 template <std::integral T>

@@ -12,6 +12,11 @@ void verifyOrdering(const Chunk<IHDR>* header, const std::vector<ChunkType>& seq
 	{
 		const auto& curr = sequence[i];
 
+		if (curr == ChunkType::Unknown)
+		{
+			continue;
+		}
+
 		if (i == 0 && curr != ChunkType::IHDR)
 		{
 			throw std::runtime_error(
@@ -33,7 +38,8 @@ void verifyOrdering(const Chunk<IHDR>* header, const std::vector<ChunkType>& seq
 			    "TRV::PNG::CHUNK PLTE must be provided before IDAT with color type 3.");
 		}
 
-		if (curr == ChunkType::IDAT && previousPosition[chunk] != i - 1)
+		if (curr == ChunkType::IDAT && previousPosition[chunk] > 0 &&
+		    previousPosition[chunk] != i - 1)
 		{
 			throw std::runtime_error("TRV::PNG::CHUNK IDAT sequences must appear consecutively.");
 		}

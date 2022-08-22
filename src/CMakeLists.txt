@@ -1,3 +1,5 @@
+option(TRV_MULTITHREADED "Enable multithreading within the filtering logic" TRUE)
+
 set(src_files
     ${CMAKE_CURRENT_SOURCE_DIR}/Filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Zlib.cpp
@@ -15,8 +17,12 @@ set(warnings $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
 )
 
-target_compile_options(pngreader_static PRIVATE ${warnings})
+if(${TRV_MULTITHREADED})
+    target_compile_definitions(pngreader PUBLIC TRV_PNG_MULTITHREADED)
+    target_compile_definitions(pngreader_static PUBLIC TRV_PNG_MULTITHREADED)
+endif()
 
+target_compile_options(pngreader_static PRIVATE ${warnings})
 target_compile_options(pngreader PRIVATE ${warnings})
 
 target_include_directories(pngreader_static PUBLIC ${PROJECT_SOURCE_DIR}/include)

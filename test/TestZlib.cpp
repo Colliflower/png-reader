@@ -2,6 +2,10 @@
 
 #include <random>
 
+#ifndef TRV_TEST_MULTITHREADED
+#undef TRV_PNG_MULTITHREADED
+#endif
+
 #include "Zlib.hpp"
 
 using namespace trv;

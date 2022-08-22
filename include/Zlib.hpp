@@ -43,7 +43,7 @@ struct DeflateArgs
 	DeflateArgs(bool png, const Bytes&& input, Bytes&& output) = delete;
 };
 
-static constexpr std::array<uint16_t, 29 * 2> lengthExtraTable = {
+inline constexpr std::array<uint16_t, 29 * 2> lengthExtraTable = {
 	//Initial ExtraBits
 	3,   0,  // 257 |  0
 	4,   0,  // 258 |  1
@@ -76,7 +76,7 @@ static constexpr std::array<uint16_t, 29 * 2> lengthExtraTable = {
 	258, 0   // 285	| 28
 };
 
-static constexpr std::array<uint16_t, 30 * 2> distanceExtraTable = {
+inline constexpr std::array<uint16_t, 30 * 2> distanceExtraTable = {
 	//Initial ExtraBits
 	1,     0,   //  0
 	2,     0,   //  1
@@ -110,29 +110,29 @@ static constexpr std::array<uint16_t, 30 * 2> distanceExtraTable = {
 	24577, 13   // 29
 };
 
-static constexpr std::uint16_t FIXED_LIT_0_143_LOWER  = 0b001100000;
-static constexpr std::uint16_t FIXED_LIT_0_143_UPPER  = 0b101111111;
-static constexpr std::uint16_t FIXED_LIT_0_143_ROOT   = 0b00110000;
-static constexpr std::uint16_t FIXED_LIT_0_143_OFFSET = 0;
-static constexpr std::uint16_t FIXED_LIT_0_143_LENGTH = 8;
+inline constexpr std::uint16_t FIXED_LIT_0_143_LOWER  = 0b001100000;
+inline constexpr std::uint16_t FIXED_LIT_0_143_UPPER  = 0b101111111;
+inline constexpr std::uint16_t FIXED_LIT_0_143_ROOT   = 0b00110000;
+inline constexpr std::uint16_t FIXED_LIT_0_143_OFFSET = 0;
+inline constexpr std::uint16_t FIXED_LIT_0_143_LENGTH = 8;
 
-static constexpr std::uint16_t FIXED_LIT_144_255_LOWER  = 0b110010000;
-static constexpr std::uint16_t FIXED_LIT_144_255_UPPER  = 0b111111111;
-static constexpr std::uint16_t FIXED_LIT_144_255_ROOT   = 0b110010000;
-static constexpr std::uint16_t FIXED_LIT_144_255_OFFSET = 144;
-static constexpr std::uint16_t FIXED_LIT_144_255_LENGTH = 9;
+inline constexpr std::uint16_t FIXED_LIT_144_255_LOWER  = 0b110010000;
+inline constexpr std::uint16_t FIXED_LIT_144_255_UPPER  = 0b111111111;
+inline constexpr std::uint16_t FIXED_LIT_144_255_ROOT   = 0b110010000;
+inline constexpr std::uint16_t FIXED_LIT_144_255_OFFSET = 144;
+inline constexpr std::uint16_t FIXED_LIT_144_255_LENGTH = 9;
 
-static constexpr std::uint16_t FIXED_LIT_256_279_LOWER  = 0b000000000;
-static constexpr std::uint16_t FIXED_LIT_256_279_UPPER  = 0b001011100;
-static constexpr std::uint16_t FIXED_LIT_256_279_ROOT   = 0b0000000;
-static constexpr std::uint16_t FIXED_LIT_256_279_OFFSET = 256;
-static constexpr std::uint16_t FIXED_LIT_256_279_LENGTH = 7;
+inline constexpr std::uint16_t FIXED_LIT_256_279_LOWER  = 0b000000000;
+inline constexpr std::uint16_t FIXED_LIT_256_279_UPPER  = 0b001011100;
+inline constexpr std::uint16_t FIXED_LIT_256_279_ROOT   = 0b0000000;
+inline constexpr std::uint16_t FIXED_LIT_256_279_OFFSET = 256;
+inline constexpr std::uint16_t FIXED_LIT_256_279_LENGTH = 7;
 
-static constexpr std::uint16_t FIXED_LIT_280_287_LOWER  = 0b110000000;
-static constexpr std::uint16_t FIXED_LIT_280_287_UPPER  = 0b110001111;
-static constexpr std::uint16_t FIXED_LIT_280_287_ROOT   = 0b11000000;
-static constexpr std::uint16_t FIXED_LIT_280_287_OFFSET = 280;
-static constexpr std::uint16_t FIXED_LIT_280_287_LENGTH = 8;
+inline constexpr std::uint16_t FIXED_LIT_280_287_LOWER  = 0b110000000;
+inline constexpr std::uint16_t FIXED_LIT_280_287_UPPER  = 0b110001111;
+inline constexpr std::uint16_t FIXED_LIT_280_287_ROOT   = 0b11000000;
+inline constexpr std::uint16_t FIXED_LIT_280_287_OFFSET = 280;
+inline constexpr std::uint16_t FIXED_LIT_280_287_LENGTH = 8;
 
 struct FixedHuffmanBitLengths
 {

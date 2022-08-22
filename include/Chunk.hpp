@@ -10,7 +10,7 @@
 
 namespace trv
 {
-static constexpr CRCTable CRC32Table {};
+inline constexpr CRCTable CRC32Table {};
 // Enum of supported chunk types
 enum class ChunkType : std::size_t
 {
@@ -78,6 +78,7 @@ struct IHDR
 	constexpr static ChunkType type = ChunkType::IHDR;
 	constexpr static char typeStr[] = { 'I', 'H', 'D', 'R' };
 
+	IHDR() = default;
 	IHDR(std::basic_ifstream<char>& input, std::uint32_t)
 	{
 		width             = extract_from_ifstream<uint32_t>(input);
@@ -188,6 +189,7 @@ struct PLTE
 	constexpr static ChunkType type = ChunkType::PLTE;
 	constexpr static char typeStr[] = { 'P', 'L', 'T', 'E' };
 
+	PLTE() = default;
 	PLTE(std::basic_ifstream<char>& input, std::uint32_t size) : data(size)
 	{
 		input.read(reinterpret_cast<char*>(data.data()), size);
@@ -219,6 +221,7 @@ struct IDAT
 	constexpr static ChunkType type = ChunkType::IDAT;
 	constexpr static char typeStr[] = { 'I', 'D', 'A', 'T' };
 
+	IDAT() = default;
 	IDAT(std::basic_ifstream<char>& input, std::uint32_t size) : lastCRC(), data(size)
 	{
 		input.read(reinterpret_cast<char*>(data.data()), size);
@@ -246,6 +249,7 @@ struct IEND
 {
 	constexpr static ChunkType type = ChunkType::IEND;
 	constexpr static char typeStr[] = { 'I', 'E', 'N', 'D' };
+	IEND()                          = default;
 	IEND(std::basic_ifstream<char>&, std::uint32_t) {};
 
 	[[nodiscard]] constexpr std::uint32_t getCRC() const { return 0xAE426082; }

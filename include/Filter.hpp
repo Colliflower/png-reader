@@ -1,4 +1,5 @@
 #pragma once
+
 #include <thread>
 #include <vector>
 
@@ -31,9 +32,10 @@ void do_unfilter(std::vector<unsigned char>& input, std::size_t offset, std::siz
 template <std::integral InputType, std::integral OutputType>
 [[nodiscard]] inline OutputType convertBitDepth(InputType val, OutputType inputBitDepth)
 {
-	assert(inputBitDepth <= sizeof(OutputType));
-	return static_cast<OutputType>((val * std::numeric_limits<OutputType>::max()) /
-	                               ((1ul << inputBitDepth) - 1ul));
+	assert(inputBitDepth <= sizeof(OutputType) * 8);
+	double scaled = (static_cast<double>(val) * std::numeric_limits<OutputType>::max()) /
+	                static_cast<double>((1ull << inputBitDepth) - 1ull);
+	return static_cast<OutputType>(scaled);
 }
 
 template <std::integral T>
@@ -63,44 +65,40 @@ void unfilter(FilterArgs<T>& args)
 			byteWidth += 1;
 		}
 
-		if constexpr (true)
+#ifdef TRV_PNG_MULTITHREADED
+		// Multithreading support, tests show no speedup on large files, slowdown on small images
+		assert(header.height != 0);
+		WorkerPool workers(do_unfilter);
+		std::int64_t scanline  = 1;
+		std::size_t chunkStart = 0;
+
+		for (; scanline < header.height - 1; ++scanline)
 		{
-			// Multithreading support, tests show no speedup on large files, slowdown on small images
-			assert(header.height != 0);
-			WorkerPool workers(do_unfilter);
-			std::int64_t scanline  = 1;
-			std::size_t chunkStart = 0;
+			FilterMethod currFilter = static_cast<FilterMethod>(args.input[scanline * byteWidth]);
+			FilterMethod prevFilter =
+			    static_cast<FilterMethod>(args.input[(scanline - 1) * byteWidth]);
 
-			for (; scanline < header.height - 1; ++scanline)
+			bool isIndependent =
+			    currFilter == FilterMethod::None || currFilter == FilterMethod::Sub;
+			if (isIndependent)
 			{
-				FilterMethod currFilter =
-				    static_cast<FilterMethod>(args.input[scanline * byteWidth]);
-				FilterMethod prevFilter =
-				    static_cast<FilterMethod>(args.input[(scanline - 1) * byteWidth]);
-
-				bool isIndependent =
-				    currFilter == FilterMethod::None || currFilter == FilterMethod::Sub;
-				if (isIndependent)
-				{
-					workers.AddTask(args.input, chunkStart * byteWidth, scanline - chunkStart,
-					                byteWidth, (bitsPerPixel + 7) / 8);
-					chunkStart = scanline;
-				}
-			}
-
-			// Last task will always escape out
-			workers.AddTask(args.input, chunkStart * byteWidth, header.height - chunkStart,
-			                byteWidth, (bitsPerPixel + 7) / 8);
-
-			while (workers.Busy())
-			{
-				std::this_thread::sleep_for(std::chrono::duration<double, std::milli> { 20.0 });
+				workers.AddTask(args.input, chunkStart * byteWidth, scanline - chunkStart,
+				                byteWidth, (bitsPerPixel + 7) / 8);
+				chunkStart = scanline;
 			}
 		}
-		else
+
+		// Last task will always escape out
+		workers.AddTask(args.input, chunkStart * byteWidth, header.height - chunkStart, byteWidth,
+		                (bitsPerPixel + 7) / 8);
+
+		while (workers.Busy())
 		{
-			do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
+			std::this_thread::sleep_for(std::chrono::duration<double, std::milli> { 20.0 });
 		}
+#else
+		do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
+#endif
 
 		for (size_t scanline = 0; scanline < header.height; ++scanline)
 		{
@@ -134,10 +132,10 @@ void unfilter(FilterArgs<T>& args)
 	}
 	else if (method == InterlaceMethod::Adam7)
 	{
-		static constexpr std::size_t rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
-		static constexpr std::size_t colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
-		static constexpr std::size_t rowStride[7] { 8, 8, 8, 4, 4, 2, 2 };
-		static constexpr std::size_t colStride[7] { 8, 8, 4, 4, 2, 2, 1 };
+		inline constexpr std::size_t rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
+		inline constexpr std::size_t colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
+		inline constexpr std::size_t rowStride[7] { 8, 8, 8, 4, 4, 2, 2 };
+		inline constexpr std::size_t colStride[7] { 8, 8, 4, 4, 2, 2, 1 };
 
 		std::size_t offset = 0;
 
