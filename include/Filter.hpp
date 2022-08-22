@@ -132,10 +132,10 @@ void unfilter(FilterArgs<T>& args)
 	}
 	else if (method == InterlaceMethod::Adam7)
 	{
-		inline constexpr std::size_t rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
-		inline constexpr std::size_t colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
-		inline constexpr std::size_t rowStride[7] { 8, 8, 8, 4, 4, 2, 2 };
-		inline constexpr std::size_t colStride[7] { 8, 8, 4, 4, 2, 2, 1 };
+		static constexpr std::size_t rowStart[7] { 0, 0, 4, 0, 2, 0, 1 };
+		static constexpr std::size_t colStart[7] { 0, 4, 0, 2, 0, 1, 0 };
+		static constexpr std::size_t rowStride[7] { 8, 8, 8, 4, 4, 2, 2 };
+		static constexpr std::size_t colStride[7] { 8, 8, 4, 4, 2, 2, 1 };
 
 		std::size_t offset = 0;
 
