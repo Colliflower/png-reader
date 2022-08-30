@@ -22,5 +22,5 @@ There are no dependencies so building is straightforward (I hope).
 Include "Image.h" and use the load_image function to load an image into memory. The template specifies the desired output data type.
 
 # Sources
-PNG Spec: http://www.libpng.org/pub/png/spec/1.2/
-Zlib Spec: https://www.ietf.org/rfc/rfc1950.txt
+* PNG Spec: http://www.libpng.org/pub/png/spec/1.2/
+* Zlib Spec: https://www.ietf.org/rfc/rfc1950.txt
