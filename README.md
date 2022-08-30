@@ -8,7 +8,7 @@
     \|__|     \|__| \|__|\|_______|        \|__|\|__|\|_______|\|__|\|__|\|_______|\|_______|\|__|\|__| 
 ```
 ## About
-A modern C++ png reader from spec. Mainly done as a fun learning challenge.
+A modern C++ png reader from spec. Done as a fun learning challenge.
 
 ## Requirements
 * CMake 3.20+
@@ -21,6 +21,6 @@ There are no dependencies so building is straightforward (I hope).
 ## Usage
 Include "Image.h" and use the load_image function to load an image into memory. The template specifies the desired output data type.
 
-# Sources
+## Sources
 * PNG Spec: http://www.libpng.org/pub/png/spec/1.2/
 * Zlib Spec: https://www.ietf.org/rfc/rfc1950.txt
