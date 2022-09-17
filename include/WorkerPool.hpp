@@ -21,7 +21,7 @@ class WorkerPool
 	{
 		for (size_t i = 0; i < threadCount; ++i)
 		{
-			_workers.emplace_back(std::thread(&WorkerPool::_task_wrapper, this));
+			_workers.emplace_back(std::bind(&WorkerPool::_task_wrapper, this));
 		}
 	};
 
@@ -30,7 +30,7 @@ class WorkerPool
 		std::unique_lock lock(_mtx);
 		_shouldTerminate = true;
 		lock.unlock();
-		_cv.notify_all();
+		_cv_task.notify_all();
 		for (auto& worker : _workers)
 		{
 			worker.join();
@@ -47,8 +47,7 @@ class WorkerPool
 	{
 		std::unique_lock lock(_mtx);
 		_tasks.emplace(std::forward<Types>(args)...);
-		lock.unlock();
-		_cv.notify_one();
+		_cv_task.notify_one();
 	}
 
 	void Stop()
@@ -57,17 +56,17 @@ class WorkerPool
 		_shouldTerminate = true;
 		_tasks           = {};
 		lock.unlock();
-		_cv.notify_all();
+		_cv_task.notify_all();
 		for (auto& worker : _workers)
 		{
 			worker.join();
 		}
 	}
 
-	bool Busy()
+	void WaitUntilFinished()
 	{
-		std::lock_guard lock(_mtx);
-		return !_tasks.empty();
+		std::unique_lock lock(_mtx);
+		_cv_finished.wait(lock, [this]() { return _tasks.empty() && _active == 0; });
 	}
 
    private:
@@ -76,30 +75,33 @@ class WorkerPool
 		while (true)
 		{
 			std::unique_lock lock(_mtx);
-			while (_tasks.empty() && !_shouldTerminate)
-			{
-				_cv.wait(lock);
-			}
+			_cv_task.wait(lock, [this]() { return _shouldTerminate || !_tasks.empty(); });
+
 			if (_shouldTerminate)
 			{
 				return;
 			}
 
-			std::size_t id = std::hash<std::thread::id> {}(std::this_thread::get_id());
-			std::cout << id << " woke up.\n";
+			++_active;
 			std::tuple<Types...> args = std::move(_tasks.front());
 			_tasks.pop();
 			lock.unlock();
+
 			std::apply(_task, args);
-			std::cout << id << " finished.\n";
+
+			lock.lock();
+			--_active;
+			_cv_finished.notify_one();
 		}
 	};
 
 	bool _shouldTerminate = false;
 	std::mutex _mtx;
-	std::condition_variable _cv;
+	std::condition_variable _cv_task;
+	std::condition_variable _cv_finished;
 	Task _task;
 	std::vector<std::thread> _workers;
 	std::queue<std::tuple<Types...>> _tasks;
+	int _active = 0;
 };
 }

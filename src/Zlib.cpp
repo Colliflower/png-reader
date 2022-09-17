@@ -22,7 +22,9 @@ void decompress(DeflateArgs& args)
 		throw std::runtime_error("TRV::ZLIB::DECOMPRESS CINFO cannot be larger than 7");
 	}
 
+#ifdef DEBUG
 	unsigned long window = 1L << (CINFO + 8);
+#endif
 
 	std::uint8_t FLG = zlibConsumer.consume_bits<uint8_t, std::endian::big>(8);
 

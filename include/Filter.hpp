@@ -92,10 +92,7 @@ void unfilter(FilterArgs<T>& args)
 		workers.AddTask(args.input, chunkStart * byteWidth, header.height - chunkStart, byteWidth,
 		                (bitsPerPixel + 7) / 8);
 
-		while (workers.Busy())
-		{
-			std::this_thread::sleep_for(std::chrono::duration<double, std::milli> { 20.0 });
-		}
+		workers.WaitUntilFinished();
 #else
 		do_unfilter(args.input, 0, header.height, byteWidth, (bitsPerPixel + 7) / 8);
 #endif
